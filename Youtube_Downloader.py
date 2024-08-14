@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import yt_dlp
 from time import sleep
@@ -113,6 +114,14 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
+        rename_downloaded_files()
+
+# Function to rename .part files to correct extension
+def rename_downloaded_files():
+    for filename in os.listdir('.'):
+        if filename.endswith('.part'):
+            new_name = filename.replace('.part', '.mp4')
+            os.rename(filename, new_name)
 
 # User Interface
 st.title("YouTube Downloader Pro")
@@ -189,64 +198,24 @@ if url:
             if st.sidebar.button("Download Selected Videos"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
+                    st.success(f"Selected videos downloaded successfully!")
                 else:
                     st.warning("No videos selected.")
-        else:
-            st.warning("No videos found in the playlist.")
 
-# Footer with contact icons and information
+# Footer
 st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #2c3e50;
-    color: white;
-    padding: 15px 0;
-    text-align: center;
-    border-top: 1px solid #34495e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-}
-.footer .text {
-    margin-bottom: 10px;
-}
-.footer a {
-    color: white;
-    text-decoration: none;
-    margin: 0 5px;
-}
-.footer a:hover {
-    text-decoration: underline;
-}
-.footer img {
-    vertical-align: middle;
-}
-</style>
-<div class="footer">
-    <div class="text">
-        Created by Chohaidi Abdessamad on 13-08-2024
-        <br>
-        For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
+    <div style="background-color:#f1f1f1;padding:10px;text-align:center;">
+        <p>Contact us: <a href="mailto:support@example.com">support@example.com</a></p>
+        <div>
+            <a href="https://github.com/your-repo" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" width="24" alt="GitHub">
+            </a>
+            <a href="https://twitter.com/your-profile" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="24" alt="Twitter">
+            </a>
+            <a href="https://www.linkedin.com/in/your-profile/" target="_blank">
+                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
+            </a>
+        </div>
     </div>
-    <div>
-        <a href="https://www.facebook.com/profile.php?id=100091786905006" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" width="24" alt="Facebook">
-        </a>
-        <a href="https://www.instagram.com/chohaidi1311s/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" alt="Instagram">
-        </a>
-        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
-        </a>
-        <a href="mailto:abdessamad.chohaidi@gmail.com" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/64/64572.png" width="24" alt="Email">
-        </a>
-    </div>
-</div>
 """, unsafe_allow_html=True)
