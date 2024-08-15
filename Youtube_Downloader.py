@@ -5,7 +5,16 @@ from urllib.parse import urlparse, parse_qs
 
 # Function to extract video info
 def get_video_info(url):
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+        'geo_bypass': True,
+        'retries': 10,
+        'sleep_interval': 5,
+        'max_sleep_interval': 10,
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
@@ -16,7 +25,14 @@ def get_video_info(url):
 # Function to extract videos from a playlist
 def get_playlist_videos(playlist_id):
     url = f"https://www.youtube.com/playlist?list={playlist_id}"
-    ydl_opts = {'quiet': True, 'extract_flat': True}
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+        'geo_bypass': True,
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -56,7 +72,13 @@ def get_first_or_exact_video(playlist_id, video_url):
 
 # Function to extract available formats of a video
 def get_available_formats(url):
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        },
+        'geo_bypass': True,
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -147,8 +169,13 @@ if url:
     if video_info and download_type == 'Single Video':
         st.subheader(f"Video Title: {video_info['title']}")
         
-        # No quality selection, always use the best available
-        selected_format = 'best'
+        formats = get_available_formats(video_url if playlist_id else url)
+        if formats:
+            # Automatically select the best quality
+            selected_format = 'best'
+        else:
+            st.warning("No available formats found.")
+            selected_format = 'best'
         
         if st.sidebar.button("Download Video"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
