@@ -2,7 +2,6 @@ import streamlit as st
 import yt_dlp
 from time import sleep
 from urllib.parse import urlparse, parse_qs
-import base64
 import os
 import tempfile
 
@@ -82,19 +81,6 @@ def get_available_formats(url):
         st.error(f"Error extracting available formats: {str(e)}")
         return []
 
-# Function to generate download link
-def generate_download_link(file_path):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:file/mp4;base64,{b64}" download="{os.path.basename(file_path)}">Download {os.path.basename(file_path)}</a>'
-    return href
-
-# Function to handle download progress updates
-def progress_hook(d):
-    if d['status'] == 'finished':
-        st.write(f"Downloaded: {d['filename']}")
-
 # Function to download videos with progress tracking
 def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
@@ -102,13 +88,12 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
-        'progress_hooks': [progress_hook],  # Add a progress hook for tracking download progress
     }
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
-    download_links = []
+    download_files = []
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -116,14 +101,13 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                 try:
                     status_container.subheader(f"Downloading {i+1}/{total_videos}...")
                     ydl.download([url])
-                    overall_progress.progress((i + 1) / total_videos)
-
-                    # Create download link for the downloaded file
+                    
+                    # Collect all downloaded files
                     for file in os.listdir(DOWNLOAD_DIR):
                         if file.endswith(fmt):
-                            file_path = os.path.join(DOWNLOAD_DIR, file)
-                            download_links.append(file_path)
+                            download_files.append(os.path.join(DOWNLOAD_DIR, file))
 
+                    overall_progress.progress((i + 1) / total_videos)
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
@@ -134,14 +118,18 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
-        # Display download links and automatically trigger downloads
-        if download_links:
-            st.subheader("Starting automatic downloads...")
-            for file_path in download_links:
-                download_link = generate_download_link(file_path)
-                st.markdown(download_link, unsafe_allow_html=True)
-                # Automatically click the link to start the download
-                st.write(f'<script>document.querySelector("a[href=\'data:file/mp4;base64,{base64.b64encode(open(file_path, "rb").read()).decode()}\']").click();</script>', unsafe_allow_html=True)
+        # Display download buttons for each file
+        if download_files:
+            st.subheader("Your files are ready to download:")
+            for file_path in download_files:
+                with open(file_path, "rb") as file:
+                    file_name = os.path.basename(file_path)
+                    st.download_button(
+                        label=f"Download {file_name}",
+                        data=file,
+                        file_name=file_name,
+                        mime="video/mp4"
+                    )
         else:
             st.warning("No videos were downloaded successfully.")
 
