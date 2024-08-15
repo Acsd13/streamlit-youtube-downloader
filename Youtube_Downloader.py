@@ -4,6 +4,7 @@ from time import sleep
 from urllib.parse import urlparse, parse_qs
 import base64
 import os
+import tempfile
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -81,11 +82,7 @@ def get_available_formats(url):
         st.error(f"Error extracting available formats: {str(e)}")
         return []
 
-# Function to save a file and generate a download link
-def save_file(file_path, file_content):
-    with open(file_path, "wb") as f:
-        f.write(file_content)
-
+# Function to generate download link
 def generate_download_link(file_path):
     with open(file_path, "rb") as f:
         data = f.read()
@@ -125,7 +122,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                     for file in os.listdir(DOWNLOAD_DIR):
                         if file.endswith(fmt):
                             file_path = os.path.join(DOWNLOAD_DIR, file)
-                            download_links.append(generate_download_link(file_path))
+                            download_links.append(file_path)
 
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
@@ -137,11 +134,14 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
-        # Display download links
+        # Display download links and automatically trigger downloads
         if download_links:
-            st.subheader("Download Links")
-            for link in download_links:
-                st.markdown(link, unsafe_allow_html=True)
+            st.subheader("Starting automatic downloads...")
+            for file_path in download_links:
+                download_link = generate_download_link(file_path)
+                st.markdown(download_link, unsafe_allow_html=True)
+                # Automatically click the link to start the download
+                st.write(f'<script>document.querySelector("a[href=\'data:file/mp4;base64,{base64.b64encode(open(file_path, "rb").read()).decode()}\']").click();</script>', unsafe_allow_html=True)
         else:
             st.warning("No videos were downloaded successfully.")
 
