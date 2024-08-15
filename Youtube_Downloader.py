@@ -2,6 +2,7 @@ import streamlit as st
 import yt_dlp
 from time import sleep
 from urllib.parse import urlparse, parse_qs
+import os
 
 # Function to extract video info
 def get_video_info(url):
@@ -109,13 +110,14 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
             total_bytes = d.get('total_bytes', 0)
             percentage = (downloaded_bytes / total_bytes) * 100 if total_bytes > 0 else 0
             st.session_state.download_status = f"Downloading: {percentage:.2f}% - Speed: {speed:.2f} KB/s"
-
+    
     ydl_opts = {
         'format': f'{quality}/{fmt}',
-        'outtmpl': '%(title)s.%(ext)s',
+        'outtmpl': os.path.join(os.getcwd(), '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
         'progress_hooks': [hook],
+        'noplaylist': True,  # Ensure only single videos are downloaded
     }
     
     total_videos = len(video_urls)
