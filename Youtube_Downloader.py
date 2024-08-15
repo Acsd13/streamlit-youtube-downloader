@@ -3,7 +3,6 @@ import yt_dlp
 from time import sleep
 from urllib.parse import urlparse, parse_qs
 import os
-import tempfile
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -81,6 +80,11 @@ def get_available_formats(url):
         st.error(f"Error extracting available formats: {str(e)}")
         return []
 
+# Function to handle download progress
+def progress_hook(d, download_files):
+    if d['status'] == 'finished':
+        download_files.add(d['filename'])
+
 # Function to download videos with progress tracking
 def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
@@ -88,17 +92,13 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
-        'progress_hooks': [progress_hook]  # Add a progress hook for tracking download progress
+        'progress_hooks': [lambda d: progress_hook(d, download_files)]  # Lambda to pass download_files
     }
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
     download_files = set()  # Use a set to avoid duplicates
-
-    def progress_hook(d):
-        if d['status'] == 'finished':
-            download_files.add(d['filename'])
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
