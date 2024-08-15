@@ -39,6 +39,40 @@ def get_playlist_videos(playlist_id):
         st.error(f"Error extracting playlist: {str(e)}")
         return []
 
+# Function to get the playlist ID from a URL
+def get_playlist_id(url):
+    parsed_url = urlparse(url)
+    if 'playlist' in parsed_url.path:
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('list', [None])[0]
+    return None
+
+# Function to get the first or exact video in the playlist
+def get_first_or_exact_video(playlist_id, exact_url):
+    videos = get_playlist_videos(playlist_id)
+    if videos:
+        for video in videos:
+            if video['url'] == exact_url:
+                return exact_url
+        return videos[0]['url']  # Return the first video if exact URL is not found
+    return None
+
+# Function to get available formats
+def get_available_formats(url):
+    ydl_opts = {
+        'quiet': True,
+        'format': 'bestaudio/best',
+        'cookies': COOKIES_PATH
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            formats = [f"{fmt['format_note']} - {fmt['ext']}" for fmt in info_dict.get('formats', [])]
+            return formats
+    except Exception as e:
+        st.error(f"Error fetching formats: {str(e)}")
+        return []
+
 # Function to download videos with progress tracking
 def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
