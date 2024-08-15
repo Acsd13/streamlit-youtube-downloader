@@ -214,12 +214,12 @@ if url:
             end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos))
 
             selected_videos = []
-
-            for video in videos[start_range-1:end_range]:
+            
+            for i, video in enumerate(videos[start_range-1:end_range]):
                 if select_all:
                     selected_videos.append(video['url'])
                 elif deselect_all:
-                    continue
+                    selected_videos = []
                 else:
                     if st.checkbox(video['title'], value=False, key=video['id']):
                         selected_videos.append(video['url'])
