@@ -8,10 +8,14 @@ import os
 DOWNLOAD_DIR = 'downloads'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Path to your cookies.txt file (make sure this file is in the same directory as your script)
+COOKIES_PATH = 'cookies.txt'
+
 # Function to extract video info
 def get_video_info(url):
     ydl_opts = {
         'quiet': True,
+        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
@@ -33,6 +37,7 @@ def get_playlist_videos(playlist_id):
     ydl_opts = {
         'quiet': True,
         'extract_flat': True,
+        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
@@ -79,6 +84,7 @@ def get_first_or_exact_video(playlist_id, video_url):
 def get_available_formats(url):
     ydl_opts = {
         'quiet': True,
+        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
@@ -143,10 +149,10 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         status_container.subheader("Download completed!")
 
 # User Interface
-st.title("YouTube Downloader Pro")
+st.title("YouTube Downloader Demo")
 
 st.markdown("""
-**Welcome to YouTube Downloader Pro**: 
+**Welcome to YouTube Downloader Demo**: 
 The ultimate solution for downloading videos or playlists from YouTube with ease.
 """)
 
