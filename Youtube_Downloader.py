@@ -88,12 +88,17 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
+        'progress_hooks': [progress_hook]  # Add a progress hook for tracking download progress
     }
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
-    download_files = []
+    download_files = set()  # Use a set to avoid duplicates
+
+    def progress_hook(d):
+        if d['status'] == 'finished':
+            download_files.add(d['filename'])
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -102,11 +107,6 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                     status_container.subheader(f"Downloading {i+1}/{total_videos}...")
                     ydl.download([url])
                     
-                    # Collect all downloaded files
-                    for file in os.listdir(DOWNLOAD_DIR):
-                        if file.endswith(fmt):
-                            download_files.append(os.path.join(DOWNLOAD_DIR, file))
-
                     overall_progress.progress((i + 1) / total_videos)
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
@@ -121,15 +121,15 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         # Display download buttons for each file
         if download_files:
             st.subheader("Your files are ready to download:")
-            for i, file_path in enumerate(download_files):
+            for file_path in download_files:
+                file_name = os.path.basename(file_path)
                 with open(file_path, "rb") as file:
-                    file_name = os.path.basename(file_path)
                     st.download_button(
                         label=f"Download {file_name}",
                         data=file,
                         file_name=file_name,
                         mime="video/mp4",
-                        key=f"download_{i}"  # Unique key for each download button
+                        key=f"download_{file_name}"  # Unique key for each download button
                     )
         else:
             st.warning("No videos were downloaded successfully.")
