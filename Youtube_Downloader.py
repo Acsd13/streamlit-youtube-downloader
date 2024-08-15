@@ -76,7 +76,6 @@ def get_first_or_exact_video(playlist_id, video_url):
     
     # Otherwise, return the first video in the playlist
     return videos[0]['url'] if videos else None
-
 # Function to extract available formats of a video
 def get_available_formats(url):
     ydl_opts = {
@@ -107,6 +106,7 @@ def get_available_formats(url):
     except Exception as e:
         st.error(f"Error extracting available formats: {str(e)}")
         return []
+
 # Function to download videos with progress tracking
 def download_videos(video_urls, quality='best', fmt='mp4'):
     def hook(d):
@@ -186,11 +186,11 @@ if url:
             st.warning("No available formats found.")
             selected_format = 'best'
         
-        if st.sidebar.button("Download Video"):
+        if st.sidebar.button("Rechercher Video"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
-            st.success(f"Download of '{video_info['title']}' completed successfully!")
+            st.success(f"Preparation of '{video_info['title']}' completed successfully!")
 
-            # Provide download link
+            # Add a button to download the video from the server to the user's device
             video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
             if os.path.isfile(video_file_path):
                 with open(video_file_path, "rb") as file:
@@ -200,88 +200,46 @@ if url:
                         file_name=f"{video_info['title']}.{selected_format}",
                         mime="video/mp4"
                     )
-
-    # Add button to download video from server to device
-    if download_type == 'Single Video' and st.sidebar.button("Download Video to Device"):
-        video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
-        if os.path.isfile(video_file_path):
-            with open(video_file_path, "rb") as file:
-                st.download_button(
-                    label=f"Download {video_info['title']} to Device",
-                    data=file.read(),
-                    file_name=f"{video_info['title']}.mp4",
-                    mime="video/mp4"
-                )
         else:
-            st.warning("Video file not found on the server.")
+            st.warning("Video file not found.")
+    elif download_type == 'Playlist':
+        st.subheader("Playlist Download")
+        playlist_videos = get_playlist_videos(playlist_id)
+        
+        if playlist_videos:
+            video_titles = [v['title'] for v in playlist_videos]
+            selected_videos = st.multiselect(
+                "Select videos to download from the playlist",
+                options=video_titles,
+                default=video_titles,
+                help="Choose specific videos to download or download all"
+            )
+            
+            if selected_videos:
+                selected_urls = [v['url'] for v in playlist_videos if v['title'] in selected_videos]
+                selected_format = 'best'  # Default to best available format
+                
+                if st.sidebar.button("Download Playlist"):
+                    download_videos(selected_urls, quality=selected_format)
+                    st.success("Playlist download completed successfully!")
 
-    elif download_type == 'Playlist' and st.sidebar.button("Download All Playlist Videos to Device"):
-        for video_url in selected_videos:
-            video_info = get_video_info(video_url)
-            if video_info:
-                video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
-                if os.path.isfile(video_file_path):
-                    with open(video_file_path, "rb") as file:
-                        st.download_button(
-                            label=f"Download {video_info['title']} to Device",
-                            data=file.read(),
-                            file_name=f"{video_info['title']}.mp4",
-                            mime="video/mp4"
-                        )
-                else:
-                    st.warning(f"Video file {video_info['title']} not found on the server.")
-# Footer with contact icons and information
-st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #2c3e50;
-    color: white;
-    padding: 15px 0;
-    text-align: center;
-    border-top: 1px solid #34495e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-}
-.footer .text {
-    margin-bottom: 10px;
-}
-.footer a {
-    color: white;
-    text-decoration: none;
-    margin: 0 5px;
-}
-.footer a:hover {
-    text-decoration: underline;
-}
-.footer img {
-    vertical-align: middle;
-}
-</style>
-<div class="footer">
-    <div class="text">
-        Created by Chohaidi Abdessamad on 13-08-2024
-        <br>
-        For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
-    </div>
-    <div>
-        <a href="https://www.facebook.com/profile.php?id=100091786905006" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" width="24" alt="Facebook">
-        </a>
-        <a href="https://www.instagram.com/chohaidi1311s/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" alt="Instagram">
-        </a>
-        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
-        </a>
-        <a href="mailto:abdessamad.chohaidi@gmail.com" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/64/64572.png" width="24" alt="Email">
-        </a>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+                    # Option to download each video to the user's device
+                    for video in selected_videos:
+                        video_info = next(v for v in playlist_videos if v['title'] == video)
+                        video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
+                        if os.path.isfile(video_file_path):
+                            with open(video_file_path, "rb") as file:
+                                st.download_button(
+                                    label=f"Download {video_info['title']}",
+                                    data=file.read(),
+                                    file_name=f"{video_info['title']}.{selected_format}",
+                                    mime="video/mp4"
+                                )
+                        else:
+                            st.warning(f"File for {video_info['title']} not found.")
+            else:
+                st.warning("No videos selected for download.")
+        else:
+            st.warning("No videos found in the playlist.")
+else:
+    st.warning("Please enter a valid YouTube URL.")
