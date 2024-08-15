@@ -5,6 +5,10 @@ from urllib.parse import urlparse, parse_qs
 import base64
 import os
 
+# Directory to store downloaded files temporarily
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
 # Function to extract video info
 def get_video_info(url):
     ydl_opts = {'quiet': True}
@@ -77,12 +81,16 @@ def get_available_formats(url):
         st.error(f"Error extracting available formats: {str(e)}")
         return []
 
-# Function to generate a download link
-def get_download_link(file_path, title):
+# Function to save a file and generate a download link
+def save_file(file_path, file_content):
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+
+def generate_download_link(file_path):
     with open(file_path, "rb") as f:
         data = f.read()
     b64 = base64.b64encode(data).decode()
-    href = f'<a href="data:file/mp4;base64,{b64}" download="{title}">Download {title}</a>'
+    href = f'<a href="data:file/mp4;base64,{b64}" download="{os.path.basename(file_path)}">Download {os.path.basename(file_path)}</a>'
     return href
 
 # Function to handle download progress updates
@@ -94,16 +102,16 @@ def progress_hook(d):
 def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
         'format': f'{quality}/{fmt}',
-        'outtmpl': '%(title)s.%(ext)s',
+        'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
-        'noplaylist': True,  # Ensure only the requested video is downloaded
         'progress_hooks': [progress_hook],  # Add a progress hook for tracking download progress
     }
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
+    download_links = []
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -112,6 +120,13 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                     status_container.subheader(f"Downloading {i+1}/{total_videos}...")
                     ydl.download([url])
                     overall_progress.progress((i + 1) / total_videos)
+
+                    # Create download link for the downloaded file
+                    for file in os.listdir(DOWNLOAD_DIR):
+                        if file.endswith(fmt):
+                            file_path = os.path.join(DOWNLOAD_DIR, file)
+                            download_links.append(generate_download_link(file_path))
+
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
@@ -121,6 +136,14 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
+
+        # Display download links
+        if download_links:
+            st.subheader("Download Links")
+            for link in download_links:
+                st.markdown(link, unsafe_allow_html=True)
+        else:
+            st.warning("No videos were downloaded successfully.")
 
 # User Interface
 st.title("YouTube Downloader Pro")
@@ -141,7 +164,6 @@ if url:
     playlist_id = get_playlist_id(url)
     
     if playlist_id and download_type == 'Single Video':
-        # Get the first or exact video in the playlist
         video_url = get_first_or_exact_video(playlist_id, url)
         if video_url:
             video_info = get_video_info(video_url)
@@ -202,6 +224,7 @@ if url:
                     st.warning("No videos selected.")
         else:
             st.warning("No videos found in the playlist.")
+
 
 # Footer with contact icons and information
 st.markdown("""
