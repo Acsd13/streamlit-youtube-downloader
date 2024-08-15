@@ -84,14 +84,13 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'continuedl': True,
         'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d, download_files)]
+        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]  # Use session state
     }
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
-    download_files = set()  # Use a set to avoid duplicates
-
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             for i, url in enumerate(video_urls):
@@ -111,9 +110,9 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         status_container.subheader("Download completed!")
 
         # Display download buttons for each file
-        if download_files:
+        if st.session_state.download_files:
             st.subheader("Your files are ready to download:")
-            for file_path in download_files:
+            for file_path in st.session_state.download_files:
                 file_name = os.path.basename(file_path)
                 with open(file_path, "rb") as file:
                     st.download_button(
@@ -146,6 +145,10 @@ def get_first_or_exact_video(playlist_id, url):
                 return url
         return videos[0]['url']  # Default to first video if exact URL not found
     return None
+
+# Initialize session state for download files
+if 'download_files' not in st.session_state:
+    st.session_state.download_files = set()
 
 # User Interface
 st.title("YouTube Downloader Pro")
