@@ -76,6 +76,7 @@ def get_first_or_exact_video(playlist_id, video_url):
     
     # Otherwise, return the first video in the playlist
     return videos[0]['url'] if videos else None
+
 # Function to extract available formats of a video
 def get_available_formats(url):
     ydl_opts = {
@@ -145,6 +146,20 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
+        # Provide download links
+        for video_url in video_urls:
+            video_info = get_video_info(video_url)
+            if video_info:
+                video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{fmt}")
+                if os.path.isfile(video_file_path):
+                    with open(video_file_path, "rb") as file:
+                        st.download_button(
+                            label=f"Download {video_info['title']}",
+                            data=file.read(),
+                            file_name=f"{video_info['title']}.{fmt}",
+                            mime=f"video/{fmt}"
+                        )
+
 # User Interface
 st.title("YouTube Downloader Demo")
 
@@ -186,11 +201,11 @@ if url:
             st.warning("No available formats found.")
             selected_format = 'best'
         
-        if st.sidebar.button("Rechercher Video"):
+        if st.sidebar.button("Download Video"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
-            st.success(f"Preparation of '{video_info['title']}' completed successfully!")
+            st.success(f"Download of '{video_info['title']}' completed successfully!")
 
-            # Add a button to download the video from the server to the user's device
+            # Provide download link
             video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
             if os.path.isfile(video_file_path):
                 with open(video_file_path, "rb") as file:
@@ -200,46 +215,23 @@ if url:
                         file_name=f"{video_info['title']}.{selected_format}",
                         mime="video/mp4"
                     )
-        else:
-            st.warning("Video file not found.")
     elif download_type == 'Playlist':
-        st.subheader("Playlist Download")
-        playlist_videos = get_playlist_videos(playlist_id)
+        videos = get_playlist_videos(playlist_id)
         
-        if playlist_videos:
-            video_titles = [v['title'] for v in playlist_videos]
-            selected_videos = st.multiselect(
-                "Select videos to download from the playlist",
-                options=video_titles,
-                default=video_titles,
-                help="Choose specific videos to download or download all"
-            )
-            
-            if selected_videos:
-                selected_urls = [v['url'] for v in playlist_videos if v['title'] in selected_videos]
-                selected_format = 'best'  # Default to best available format
-                
-                if st.sidebar.button("Download Playlist"):
-                    download_videos(selected_urls, quality=selected_format)
-                    st.success("Playlist download completed successfully!")
+        if videos:
+            st.subheader("Video Selection Options")
 
-                    # Option to download each video to the user's device
-                    for video in selected_videos:
-                        video_info = next(v for v in playlist_videos if v['title'] == video)
-                        video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
-                        if os.path.isfile(video_file_path):
-                            with open(video_file_path, "rb") as file:
-                                st.download_button(
-                                    label=f"Download {video_info['title']}",
-                                    data=file.read(),
-                                    file_name=f"{video_info['title']}.{selected_format}",
-                                    mime="video/mp4"
-                                )
-                        else:
-                            st.warning(f"File for {video_info['title']} not found.")
-            else:
-                st.warning("No videos selected for download.")
+            selected_videos = []
+            for video in videos:
+                video_title = video['title']
+                if st.checkbox(f"Select {video_title}", value=False):
+                    selected_videos.append(video['url'])
+            
+            if st.sidebar.button("Download Selected Videos"):
+                if selected_videos:
+                    download_videos(selected_videos, quality='best')
+                    st.success("Download of selected videos completed successfully!")
+                else:
+                    st.warning("No videos selected for download.")
         else:
             st.warning("No videos found in the playlist.")
-else:
-    st.warning("Please enter a valid YouTube URL.")
