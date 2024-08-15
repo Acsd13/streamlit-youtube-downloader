@@ -107,8 +107,7 @@ def get_available_formats(url):
     except Exception as e:
         st.error(f"Error extracting available formats: {str(e)}")
         return []
-
-# Function to download videos with progress tracking
+# Function to download videos with progress tracking and provide download buttons for users
 def download_videos(video_urls, quality='best', fmt='mp4'):
     def hook(d):
         if d['status'] == 'downloading':
@@ -131,6 +130,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
     status_container = st.empty()
+    download_links = []
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -140,11 +140,28 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                 ydl.download([url])
                 overall_progress.progress((i + 1) / total_videos)
                 sleep(0.1)  # Simulate delay for smooth progress bar update
+                
+                # Get the video title for generating the file path
+                video_info = get_video_info(url)
+                if video_info:
+                    video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{fmt}")
+                    if os.path.isfile(video_file_path):
+                        download_links.append((video_info['title'], video_file_path))
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
+        
+        # Provide download buttons for the user to download videos from the server to their device
+        for title, path in download_links:
+            with open(path, "rb") as file:
+                st.download_button(
+                    label=f"Download {title}",
+                    data=file.read(),
+                    file_name=f"{title}.{fmt}",
+                    mime="video/mp4"
+                )
 
 # User Interface
 st.title("YouTube Downloader Demo")
@@ -190,17 +207,6 @@ if url:
         if st.sidebar.button("Download Video"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
             st.success(f"Download of '{video_info['title']}' completed successfully!")
-
-            # Provide download link
-            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
-            if os.path.isfile(video_file_path):
-                with open(video_file_path, "rb") as file:
-                    st.download_button(
-                        label="Download Video",
-                        data=file.read(),
-                        file_name=f"{video_info['title']}.{selected_format}",
-                        mime="video/mp4"
-                    )
     elif download_type == 'Playlist':
         videos = get_playlist_videos(playlist_id)
         
@@ -227,22 +233,7 @@ if url:
             if st.sidebar.button("Download Selected Videos"):
                 download_videos(selected_videos, quality='best')
                 st.success("Download of selected videos completed successfully!")
-                
-                # Provide download links
-                for video_url in selected_videos:
-                    video_info = get_video_info(video_url)
-                    if video_info:
-                        video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
-                        if os.path.isfile(video_file_path):
-                            with open(video_file_path, "rb") as file:
-                                st.download_button(
-                                    label=f"Download {video_info['title']}",
-                                    data=file.read(),
-                                    file_name=f"{video_info['title']}.mp4",
-                                    mime="video/mp4"
-                                )
-        else:
-            st.warning("No videos found in the playlist.")
+
 # Footer with contact icons and information
 st.markdown("""
 <style>
