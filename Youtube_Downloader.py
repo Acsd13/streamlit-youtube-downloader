@@ -8,14 +8,13 @@ import os
 DOWNLOAD_DIR = 'downloads'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# Path to your cookies.txt file (make sure this file is in the same directory as your script)
-COOKIES_PATH = 'cookies.txt'
+# Path to your cookies file
+COOKIES_FILE = 'cookies.txt'
 
 # Function to extract video info
 def get_video_info(url):
     ydl_opts = {
         'quiet': True,
-        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
@@ -23,6 +22,7 @@ def get_video_info(url):
         'retries': 10,
         'sleep_interval': 5,
         'max_sleep_interval': 10,
+        'cookies': COOKIES_FILE,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -37,11 +37,11 @@ def get_playlist_videos(playlist_id):
     ydl_opts = {
         'quiet': True,
         'extract_flat': True,
-        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
         'geo_bypass': True,
+        'cookies': COOKIES_FILE,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -84,11 +84,11 @@ def get_first_or_exact_video(playlist_id, video_url):
 def get_available_formats(url):
     ydl_opts = {
         'quiet': True,
-        'cookies': COOKIES_PATH,
         'headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
         'geo_bypass': True,
+        'cookies': COOKIES_FILE,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -128,6 +128,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'ignoreerrors': True,
         'progress_hooks': [hook],
         'noplaylist': True,  # Ensure only single videos are downloaded
+        'cookies': COOKIES_FILE,
     }
     
     total_videos = len(video_urls)
@@ -194,50 +195,41 @@ if url:
             st.success(f"Download of '{video_info['title']}' completed successfully!")
 
             # Provide download link
-            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
+            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
             if os.path.isfile(video_file_path):
-                with open(video_file_path, "rb") as file:
-                    st.download_button(
-                        label="Download Video",
-                        data=file.read(),
-                        file_name=f"{video_info['title']}.mp4",
-                        mime="video/mp4"
-                    )
+                st.download_button(
+                    label="Download Video",
+                    data=open(video_file_path, "rb").read(),
+                    file_name=f"{video_info['title']}.{selected_format}",
+                    mime="video/mp4"
+                )
     elif download_type == 'Playlist':
         videos = get_playlist_videos(playlist_id)
-        
         if videos:
-            st.subheader("Video Selection Options")
+            st.subheader("Available Videos in Playlist:")
 
-            # Display the list of videos with checkboxes
-            selected_videos = []
-            for i, video in enumerate(videos):
-                checkbox_label = f"Video {i + 1}: {video['title']}"
-                if st.checkbox(checkbox_label, value=True):
-                    selected_videos.append(video['url'])
+            select_all = st.checkbox("Select all videos", value=False)
+            deselect_all = st.checkbox("Deselect all videos", value=False)
             
+            start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1)
+            end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos))
+
+            selected_videos = []
+
+            for video in videos[start_range-1:end_range]:
+                if select_all:
+                    selected_videos.append(video['url'])
+                elif deselect_all:
+                    continue
+                else:
+                    if st.checkbox(video['title'], value=False, key=video['id']):
+                        selected_videos.append(video['url'])
+
             if st.sidebar.button("Download Selected Videos"):
                 if selected_videos:
-                    download_videos(selected_videos, quality='best', fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
-
-                    # Provide download links for each video
-                    for video_url in selected_videos:
-                        video_info = get_video_info(video_url)
-                        if video_info:
-                            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
-                            if os.path.isfile(video_file_path):
-                                with open(video_file_path, "rb") as file:
-                                    st.download_button(
-                                        label=f"Download {video_info['title']}",
-                                        data=file.read(),
-                                        file_name=f"{video_info['title']}.mp4",
-                                        mime="video/mp4"
-                                    )
+                    download_videos(selected_videos)
                 else:
                     st.warning("No videos selected.")
-        else:
-            st.warning("No videos found in the playlist.")
 
 # Footer with contact icons and information
 st.markdown("""
