@@ -91,7 +91,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
         'format': f'{quality}/{fmt}',
         'outtmpl': '%(title)s.%(ext)s',
-        'continuedl': True,  # Resume download if interrupted
+        'continuedl': True,
         'ignoreerrors': True,
         'progress_hooks': [hook],
     }
@@ -115,10 +115,10 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         status_container.subheader("Download completed!")
 
 # User Interface
-st.title("YouTube Downloader Demo")
+st.title("YouTube Downloader Pro")
 
 st.markdown("""
-**Welcome to YouTube Downloader Demo**: 
+**Welcome to YouTube Downloader Pro**: 
 The ultimate solution for downloading videos or playlists from YouTube with ease.
 """)
 
@@ -147,13 +147,8 @@ if url:
     if video_info and download_type == 'Single Video':
         st.subheader(f"Video Title: {video_info['title']}")
         
-        formats = get_available_formats(video_url if playlist_id else url)
-        if formats:
-            quality_fmt = st.sidebar.selectbox("Choose quality and format", formats)
-            selected_format = quality_fmt.split(" - ")[0]
-        else:
-            st.warning("No available formats found.")
-            selected_format = 'best'
+        # No quality selection, always use the best available
+        selected_format = 'best'
         
         if st.sidebar.button("Download Video"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
@@ -235,8 +230,18 @@ st.markdown("""
         For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
     </div>
     <div>
-        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/"><img src="https://image.similarpng.com/very-thumbnail/2020/06/Linkedin-logo-illustration-on-transparent-background-PNG.png" width="24"></a>
-        <a href="https://github.com/abdessamad-chohaidi"><img src="https://image.similarpng.com/very-thumbnail/2020/05/Github-icon-transparent-PNG.png" width="24"></a>
+        <a href="https://www.facebook.com/profile.php?id=100091786905006" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" width="24" alt="Facebook">
+        </a>
+        <a href="https://www.instagram.com/chohaidi1311s/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" alt="Instagram">
+        </a>
+        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
+        </a>
+        <a href="mailto:abdessamad.chohaidi@gmail.com" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/64/64572.png" width="24" alt="Email">
+        </a>
     </div>
 </div>
 """, unsafe_allow_html=True)
