@@ -121,14 +121,15 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         # Display download buttons for each file
         if download_files:
             st.subheader("Your files are ready to download:")
-            for file_path in download_files:
+            for i, file_path in enumerate(download_files):
                 with open(file_path, "rb") as file:
                     file_name = os.path.basename(file_path)
                     st.download_button(
                         label=f"Download {file_name}",
                         data=file,
                         file_name=file_name,
-                        mime="video/mp4"
+                        mime="video/mp4",
+                        key=f"download_{i}"  # Unique key for each download button
                     )
         else:
             st.warning("No videos were downloaded successfully.")
@@ -143,10 +144,10 @@ The ultimate solution for downloading videos or playlists from YouTube with ease
 
 # Download options
 st.sidebar.header("Download Options")
-download_type = st.sidebar.radio("Choose download type", ['Single Video', 'Playlist'])
+download_type = st.sidebar.radio("Choose download type", ['Single Video', 'Playlist'], key="download_type")
 
 # URL input
-url = st.sidebar.text_input("Enter YouTube URL")
+url = st.sidebar.text_input("Enter YouTube URL", key="url_input")
 
 if url:
     playlist_id = get_playlist_id(url)
@@ -167,13 +168,13 @@ if url:
         
         formats = get_available_formats(video_url if playlist_id else url)
         if formats:
-            quality_fmt = st.sidebar.selectbox("Choose quality and format", formats)
+            quality_fmt = st.sidebar.selectbox("Choose quality and format", formats, key="format_select")
             selected_format = quality_fmt.split(" - ")[0]
         else:
             st.warning("No available formats found.")
             selected_format = 'best'
         
-        if st.sidebar.button("Download Video"):
+        if st.sidebar.button("Download Video", key="download_button_single"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
             st.success(f"Download of '{video_info['title']}' completed successfully!")
     elif download_type == 'Playlist':
@@ -182,29 +183,25 @@ if url:
         if videos:
             st.subheader("Video Selection Options")
 
-            select_all = st.checkbox("Select all videos", value=False)
-            deselect_all = st.checkbox("Deselect all videos", value=False)
+            select_all = st.checkbox("Select all videos", value=False, key="select_all")
+            deselect_all = st.checkbox("Deselect all videos", value=False, key="deselect_all")
             
-            start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1)
-            end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos))
+            start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1, key="start_range")
+            end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos), key="end_range")
 
             st.subheader("Playlist Preview")
             selected_videos = []
 
             with st.expander("Video List"):
                 for i, video in enumerate(videos):
-                    if select_all:
+                    is_selected = select_all or (start_range - 1 <= i <= end_range - 1)
+                    if deselect_all:
+                        is_selected = False
+                    st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}")
+                    if is_selected:
                         selected_videos.append(video['url'])
-                        st.checkbox(video['title'], value=True, key=video['id'], disabled=True)
-                    elif deselect_all:
-                        st.checkbox(video['title'], value=False, key=video['id'], disabled=True)
-                    elif start_range - 1 <= i <= end_range - 1:
-                        selected_videos.append(video['url'])
-                        st.checkbox(video['title'], value=True, key=video['id'])
-                    else:
-                        st.checkbox(video['title'], value=False, key=video['id'])
 
-            if st.sidebar.button("Download Selected Videos"):
+            if st.sidebar.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
@@ -212,7 +209,6 @@ if url:
                     st.warning("No videos selected.")
         else:
             st.warning("No videos found in the playlist.")
-
 
 # Footer with contact icons and information
 st.markdown("""
