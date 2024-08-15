@@ -85,6 +85,11 @@ def get_download_link(file_path, title):
     href = f'<a href="data:file/mp4;base64,{b64}" download="{title}">Download {title}</a>'
     return href
 
+# Function to handle download progress updates
+def progress_hook(d):
+    if d['status'] == 'finished':
+        st.write(f"Downloaded: {d['filename']}")
+
 # Function to download videos with progress tracking
 def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
@@ -95,10 +100,6 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'noplaylist': True,  # Ensure only the requested video is downloaded
         'progress_hooks': [progress_hook],  # Add a progress hook for tracking download progress
     }
-
-    def progress_hook(d):
-        if d['status'] == 'finished':
-            st.write(f"Downloaded: {d['filename']}")
 
     total_videos = len(video_urls)
     overall_progress = st.progress(0)
