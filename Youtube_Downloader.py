@@ -194,14 +194,15 @@ if url:
             st.success(f"Download of '{video_info['title']}' completed successfully!")
 
             # Provide download link
-            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.{selected_format}")
+            video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
             if os.path.isfile(video_file_path):
-                st.download_button(
-                    label="Download Video",
-                    data=open(video_file_path, "rb").read(),
-                    file_name=f"{video_info['title']}.{selected_format}",
-                    mime="video/mp4"
-                )
+                with open(video_file_path, "rb") as file:
+                    st.download_button(
+                        label="Download Video",
+                        data=file.read(),
+                        file_name=f"{video_info['title']}.mp4",
+                        mime="video/mp4"
+                    )
     elif download_type == 'Playlist':
         videos = get_playlist_videos(playlist_id)
         
@@ -211,20 +212,18 @@ if url:
             select_all = st.checkbox("Select all videos", value=False)
             deselect_all = st.checkbox("Deselect all videos", value=False)
             
-            start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1)
-            end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos))
+            start_range = st.number_input("Start index", min_value=1, max_value=len(videos), value=1)
+            end_range = st.number_input("End index", min_value=1, max_value=len(videos), value=len(videos))
 
             selected_videos = []
-
-            for video in videos[start_range-1:end_range]:
+            for i, video in enumerate(videos):
                 if select_all:
                     selected_videos.append(video['url'])
                 elif deselect_all:
                     continue
-                else:
-                    if st.checkbox(video['title'], value=False, key=video['id']):
-                        selected_videos.append(video['url'])
-
+                elif start_range <= (i + 1) <= end_range:
+                    selected_videos.append(video['url'])
+            
             if st.sidebar.button("Download Selected Videos"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
@@ -235,17 +234,18 @@ if url:
                         if video_info:
                             video_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['title']}.mp4")
                             if os.path.isfile(video_file_path):
-                                st.download_button(
-                                    label=f"Download {video_info['title']}",
-                                    data=open(video_file_path, "rb").read(),
-                                    file_name=f"{video_info['title']}.mp4",
-                                    mime="video/mp4"
-                                )
+                                with open(video_file_path, "rb") as file:
+                                    st.download_button(
+                                        label=f"Download {video_info['title']}",
+                                        data=file.read(),
+                                        file_name=f"{video_info['title']}.mp4",
+                                        mime="video/mp4"
+                                    )
                 else:
                     st.warning("No videos selected.")
         else:
             st.warning("No videos found in the playlist.")
-            
+
 # Footer with contact icons and information
 st.markdown("""
 <style>
