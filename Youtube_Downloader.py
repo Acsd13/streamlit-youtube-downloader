@@ -209,19 +209,11 @@ if url:
         if videos:
             st.subheader("Video Selection Options")
 
-            select_all = st.checkbox("Select all videos", value=False)
-            deselect_all = st.checkbox("Deselect all videos", value=False)
-            
-            start_range = st.number_input("Start index", min_value=1, max_value=len(videos), value=1)
-            end_range = st.number_input("End index", min_value=1, max_value=len(videos), value=len(videos))
-
+            # Display the list of videos with checkboxes
             selected_videos = []
             for i, video in enumerate(videos):
-                if select_all:
-                    selected_videos.append(video['url'])
-                elif deselect_all:
-                    continue
-                elif start_range <= (i + 1) <= end_range:
+                checkbox_label = f"Video {i + 1}: {video['title']}"
+                if st.checkbox(checkbox_label, value=True):
                     selected_videos.append(video['url'])
             
             if st.sidebar.button("Download Selected Videos"):
@@ -229,6 +221,7 @@ if url:
                     download_videos(selected_videos, quality='best', fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
 
+                    # Provide download links for each video
                     for video_url in selected_videos:
                         video_info = get_video_info(video_url)
                         if video_info:
