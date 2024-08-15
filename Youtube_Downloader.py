@@ -15,7 +15,7 @@ COOKIES_FILE = 'cookies.txt'
 def get_video_info(url):
     ydl_opts = {
         'quiet': True,
-        'cookiefile': COOKIES_FILE  # Add this line
+        'cookiefile': COOKIES_FILE
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -30,7 +30,7 @@ def get_playlist_videos(playlist_id):
     ydl_opts = {
         'quiet': True,
         'extract_flat': True,
-        'cookiefile': COOKIES_FILE  # Add this line
+        'cookiefile': COOKIES_FILE
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -48,7 +48,7 @@ def get_playlist_videos(playlist_id):
 def get_available_formats(url):
     ydl_opts = {
         'quiet': True,
-        'cookiefile': COOKIES_FILE  # Add this line
+        'cookiefile': COOKIES_FILE
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -83,8 +83,8 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
-        'cookiefile': COOKIES_FILE,  # Add this line
-        'progress_hooks': [lambda d: progress_hook(d, download_files)]  # Lambda to pass download_files
+        'cookiefile': COOKIES_FILE,
+        'progress_hooks': [lambda d: progress_hook(d, download_files)]
     }
 
     total_videos = len(video_urls)
@@ -125,6 +125,27 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                     )
         else:
             st.warning("No videos were downloaded successfully.")
+
+# Function to get playlist ID from URL
+def get_playlist_id(url):
+    try:
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('list', [None])[0]
+    except Exception as e:
+        st.error(f"Error parsing playlist ID: {str(e)}")
+        return None
+
+# Function to get the first video URL or exact video URL from playlist
+def get_first_or_exact_video(playlist_id, url):
+    videos = get_playlist_videos(playlist_id)
+    if videos:
+        # Assuming the URL is in the playlist
+        for video in videos:
+            if video['url'] == url:
+                return url
+        return videos[0]['url']  # Default to first video if exact URL not found
+    return None
 
 # User Interface
 st.title("YouTube Downloader Pro")
