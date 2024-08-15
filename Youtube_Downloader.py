@@ -3,6 +3,8 @@ import yt_dlp
 from time import sleep
 from urllib.parse import urlparse, parse_qs
 import os
+import zipfile
+import io
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -109,21 +111,15 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
-        # Display download buttons for each file
-        if st.session_state.download_files:
-            st.subheader("Your files are ready to download:")
-            for file_path in st.session_state.download_files:
-                file_name = os.path.basename(file_path)
-                with open(file_path, "rb") as file:
-                    st.download_button(
-                        label=f"Download {file_name}",
-                        data=file,
-                        file_name=file_name,
-                        mime="video/mp4",
-                        key=f"download_{file_name}"  # Unique key for each download button
-                    )
-        else:
-            st.warning("No videos were downloaded successfully.")
+# Function to create a ZIP file for all downloaded files
+def create_zip(files):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zip_file:
+        for file_path in files:
+            file_name = os.path.basename(file_path)
+            zip_file.write(file_path, file_name)
+    buffer.seek(0)
+    return buffer
 
 # Function to get playlist ID from URL
 def get_playlist_id(url):
@@ -221,6 +217,17 @@ if url:
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
+
+                    # Provide a single download button for all files as a ZIP archive
+                    if st.session_state.download_files:
+                        zip_buffer = create_zip(st.session_state.download_files)
+                        st.download_button(
+                            label="Download All as ZIP",
+                            data=zip_buffer,
+                            file_name="videos.zip",
+                            mime="application/zip",
+                            key="download_zip"
+                        )
                 else:
                     st.warning("No videos selected.")
         else:
