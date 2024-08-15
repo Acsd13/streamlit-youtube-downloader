@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import yt_dlp
 from time import sleep
@@ -92,7 +91,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     ydl_opts = {
         'format': f'{quality}/{fmt}',
         'outtmpl': '%(title)s.%(ext)s',
-        'continuedl': True,
+        'continuedl': True,  # Resume download if interrupted
         'ignoreerrors': True,
         'progress_hooks': [hook],
     }
@@ -114,20 +113,12 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
-        rename_downloaded_files()
-
-# Function to rename .part files to correct extension
-def rename_downloaded_files():
-    for filename in os.listdir('.'):
-        if filename.endswith('.part'):
-            new_name = filename.replace('.part', '.mp4')
-            os.rename(filename, new_name)
 
 # User Interface
-st.title("YouTube Downloader Pro")
+st.title("YouTube Downloader Demo")
 
 st.markdown("""
-**Welcome to YouTube Downloader Pro**: 
+**Welcome to YouTube Downloader Demo**: 
 The ultimate solution for downloading videos or playlists from YouTube with ease.
 """)
 
@@ -198,24 +189,54 @@ if url:
             if st.sidebar.button("Download Selected Videos"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
-                    st.success(f"Selected videos downloaded successfully!")
+                    st.success("Download of selected videos completed successfully!")
                 else:
                     st.warning("No videos selected.")
+        else:
+            st.warning("No videos found in the playlist.")
 
-# Footer
+# Footer with contact icons and information
 st.markdown("""
-    <div style="background-color:#f1f1f1;padding:10px;text-align:center;">
-        <p>Contact us: <a href="mailto:support@example.com">support@example.com</a></p>
-        <div>
-            <a href="https://github.com/your-repo" target="_blank">
-                <img src="https://cdn-icons-png.flaticon.com/512/25/25231.png" width="24" alt="GitHub">
-            </a>
-            <a href="https://twitter.com/your-profile" target="_blank">
-                <img src="https://cdn-icons-png.flaticon.com/512/733/733579.png" width="24" alt="Twitter">
-            </a>
-            <a href="https://www.linkedin.com/in/your-profile/" target="_blank">
-                <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
-            </a>
-        </div>
+<style>
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #2c3e50;
+    color: white;
+    padding: 15px 0;
+    text-align: center;
+    border-top: 1px solid #34495e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+.footer .text {
+    margin-bottom: 10px;
+}
+.footer a {
+    color: white;
+    text-decoration: none;
+    margin: 0 5px;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+.footer img {
+    vertical-align: middle;
+}
+</style>
+<div class="footer">
+    <div class="text">
+        Created by Chohaidi Abdessamad on 13-08-2024
+        <br>
+        For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
     </div>
+    <div>
+        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/"><img src="https://image.similarpng.com/very-thumbnail/2020/06/Linkedin-logo-illustration-on-transparent-background-PNG.png" width="24"></a>
+        <a href="https://github.com/abdessamad-chohaidi"><img src="https://image.similarpng.com/very-thumbnail/2020/05/Github-icon-transparent-PNG.png" width="24"></a>
+    </div>
+</div>
 """, unsafe_allow_html=True)
