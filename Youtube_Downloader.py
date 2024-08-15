@@ -243,7 +243,6 @@ if url:
                                 )
         else:
             st.warning("No videos found in the playlist.")
-
 # Footer with contact icons and information
 st.markdown("""
 <style>
