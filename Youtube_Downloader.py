@@ -8,9 +8,15 @@ import os
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
+# Path to cookies file
+COOKIES_FILE = 'cookies.txt'
+
 # Function to extract video info
 def get_video_info(url):
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'cookiefile': COOKIES_FILE  # Add this line
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
@@ -21,7 +27,11 @@ def get_video_info(url):
 # Function to extract videos from a playlist
 def get_playlist_videos(playlist_id):
     url = f"https://www.youtube.com/playlist?list={playlist_id}"
-    ydl_opts = {'quiet': True, 'extract_flat': True}
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'cookiefile': COOKIES_FILE  # Add this line
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -34,31 +44,12 @@ def get_playlist_videos(playlist_id):
         st.error(f"Error extracting playlist: {str(e)}")
         return []
 
-# Function to check if a link is a playlist and extract the ID
-def get_playlist_id(url):
-    parsed_url = urlparse(url)
-    query_params = parse_qs(parsed_url.query)
-    return query_params.get('list', [None])[0]
-
-# Extract the first video or the exact video equivalent from the playlist
-def get_first_or_exact_video(playlist_id, video_url):
-    videos = get_playlist_videos(playlist_id)
-    if not videos:
-        return None
-    
-    parsed_url = urlparse(video_url)
-    video_id = parse_qs(parsed_url.query).get('v', [None])[0]
-    
-    if video_id:
-        for video in videos:
-            if video['id'] == video_id:
-                return video['url']
-    
-    return videos[0]['url'] if videos else None
-
 # Function to extract available formats of a video
 def get_available_formats(url):
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'cookiefile': COOKIES_FILE  # Add this line
+    }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -92,6 +83,7 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
+        'cookiefile': COOKIES_FILE,  # Add this line
         'progress_hooks': [lambda d: progress_hook(d, download_files)]  # Lambda to pass download_files
     }
 
