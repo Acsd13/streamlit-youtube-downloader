@@ -18,6 +18,12 @@ COOKIES_FILE = 'cookies.txt'
 # YouTube Data API key
 API_KEY = 'AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU'
 
+# Initialize session state
+if 'download_files' not in st.session_state:
+    st.session_state.download_files = set()
+if 'failed_downloads' not in st.session_state:
+    st.session_state.failed_downloads = []
+
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
     youtube = build('youtube', 'v3', developerKey=API_KEY)
@@ -33,9 +39,9 @@ def get_video_info(video_id):
         return None
 
 # Function to handle download progress
-def progress_hook(d, download_files):
+def progress_hook(d):
     if d['status'] == 'finished':
-        download_files.add(d['filename'])
+        st.session_state.download_files.add(d['filename'])
 
 # Function to download videos with progress tracking
 def download_videos(video_urls, fmt='mp4'):
@@ -45,7 +51,7 @@ def download_videos(video_urls, fmt='mp4'):
         'continuedl': True,
         'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]  # Use session state
+        'progress_hooks': [progress_hook]
     }
 
     total_videos = len(video_urls)
@@ -152,12 +158,6 @@ def handle_download(video_urls, fmt='mp4'):
     if st.session_state.failed_downloads:
         st.warning("Retrying failed downloads...")
         download_videos(st.session_state.failed_downloads, fmt=fmt)
-
-# Initialize session state for download files
-if 'download_files' not in st.session_state:
-    st.session_state.download_files = set()
-if 'failed_downloads' not in st.session_state:
-    st.session_state.failed_downloads = []
 
 # User Interface
 st.title("YouTube Downloader Pro")
