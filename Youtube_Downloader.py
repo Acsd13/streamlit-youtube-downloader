@@ -35,15 +35,15 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to get playlist videos (assuming this is defined elsewhere)
+# Function to get playlist videos (implement this as needed)
 def get_playlist_videos(playlist_id):
     # Placeholder function - Implement this to return a list of video dictionaries
-    pass
+    return []
 
-# Function to get playlist ID from URL (assuming this is defined elsewhere)
+# Function to get playlist ID from URL (implement this as needed)
 def get_playlist_id(url):
     # Placeholder function - Implement this to return the playlist ID
-    pass
+    return None
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -91,7 +91,8 @@ def download_videos(video_urls, fmt='mp4'):
                     ydl.download([url])
                     
                     overall_progress.progress((i + 1) / total_videos)
-                    st.session_state.download_files.add(os.path.join(DOWNLOAD_DIR, f"{i+1}.mp4"))  # Update session state
+                    # Update session state
+                    st.session_state.download_files.add(os.path.join(DOWNLOAD_DIR, f"{i+1}.mp4"))  
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
@@ -144,6 +145,17 @@ if url:
                 if st.button("Download Video", key="download_button_single"):
                     download_videos([video_url], fmt='mp4')
                     st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+                    
+                    # Provide download button for the video
+                    downloaded_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")
+                    if os.path.exists(downloaded_file_path):
+                        with open(downloaded_file_path, "rb") as f:
+                            st.download_button(
+                                label="Download Video File",
+                                data=f,
+                                file_name=os.path.basename(downloaded_file_path),
+                                mime="video/mp4"
+                            )
             else:
                 st.warning("Failed to fetch video information.")
         else:
