@@ -221,25 +221,28 @@ if url:
 
                 with st.expander("Video List"):
                     for i, video in enumerate(videos):
-                        checked = st.checkbox(video['title'], value=select_all and (start_range <= i + 1 <= end_range), key=f"video_{i}")
+                        checked = st.checkbox(video['title'], value=(select_all or (start_range <= i + 1 <= end_range)), key=f"video_{i}")
                         if checked:
                             selected_videos.append(video['url'])
                     
                 if st.button("Download Selected Videos", key="download_button_playlist"):
-                    download_videos(selected_videos, fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
+                    if selected_videos:
+                        download_videos(selected_videos, fmt='mp4')
+                        st.success("Download of selected videos completed successfully!")
 
-                    # Provide zip download link
-                    zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
-                    if zip_files:
-                        zip_buffer = create_zip(zip_files)
-                        st.download_button(
-                            label="Download Playlist",
-                            data=zip_buffer,
-                            file_name="playlist.zip",
-                            mime="application/zip",
-                            key="download_playlist_zip"
-                        )
+                        # Provide zip download link
+                        zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
+                        if zip_files:
+                            zip_buffer = create_zip(zip_files)
+                            st.download_button(
+                                label="Download Playlist",
+                                data=zip_buffer,
+                                file_name="playlist.zip",
+                                mime="application/zip",
+                                key="download_playlist_zip"
+                            )
+                    else:
+                        st.warning("No videos selected.")
             else:
                 st.warning("Failed to fetch playlist videos.")
         else:
