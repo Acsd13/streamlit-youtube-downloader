@@ -125,6 +125,17 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
             st.warning("Some videos failed to download. Retrying...")
             download_videos(failed_videos, quality=quality, fmt=fmt)
 
+        if not failed_videos:
+            # Create a ZIP file if all videos are downloaded
+            zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{os.path.basename(urlparse(v).path)}.mp4") for v in video_urls])
+            st.download_button(
+                label="Download All as ZIP",
+                data=zip_buffer,
+                file_name="videos.zip",
+                mime="application/zip",
+                key="download_zip"
+            )
+
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
     buffer = io.BytesIO()
@@ -196,13 +207,8 @@ if url:
     if video_info and download_type == 'Single Video':
         st.subheader(f"Video Title: {video_info['title']}")
         
-        formats = get_available_formats(video_url if playlist_id else url)
-        if formats:
-            quality_fmt = st.selectbox("Choose quality and format", formats, key="format_select")
-            selected_format = quality_fmt.split(" - ")[0]
-        else:
-            st.warning("No available formats found.")
-            selected_format = 'best'
+        # Hide quality selection and set to 'best'
+        selected_format = 'best'
         
         if st.button("Download Video", key="download_button_single"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
@@ -234,7 +240,7 @@ if url:
             if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
-
+                    
                     # Check if all videos are downloaded and provide a ZIP download option
                     if check_all_files_downloaded([os.path.basename(urlparse(v).path) + ".mp4" for v in selected_videos]):
                         zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, os.path.basename(urlparse(v).path) + ".mp4") for v in selected_videos])
