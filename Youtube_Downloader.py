@@ -6,6 +6,7 @@ from urllib.parse import urlparse, parse_qs
 import os
 import zipfile
 import io
+import threading
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -126,6 +127,32 @@ def get_playlist_videos(playlist_id):
         st.error(f"Error extracting playlist: {str(e)}")
         return []
 
+# Function to handle long-running downloads in a background thread
+def handle_download(video_urls, fmt='mp4'):
+    st.session_state.download_files.clear()  # Clear previous files
+    st.session_state.failed_downloads.clear()  # Clear previous failed downloads
+    download_videos(video_urls, fmt=fmt)
+    
+    if st.session_state.download_files:
+        st.success("Download completed successfully!")
+        
+        # Provide a single download button for all files as a ZIP archive
+        zip_buffer = create_zip(st.session_state.download_files)
+        st.download_button(
+            label="Download All as ZIP",
+            data=zip_buffer,
+            file_name="videos.zip",
+            mime="application/zip",
+            key="download_zip"
+        )
+    else:
+        st.warning("No videos were downloaded.")
+    
+    # Handle retrying failed downloads
+    if st.session_state.failed_downloads:
+        st.warning("Retrying failed downloads...")
+        download_videos(st.session_state.failed_downloads, fmt=fmt)
+
 # Initialize session state for download files
 if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
@@ -159,19 +186,9 @@ if url:
             st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
             
             if st.button("Download Video", key="download_button_single"):
-                st.session_state.download_files.clear()  # Clear previous files
-                download_videos([url], fmt='mp4')
-                if st.session_state.download_files:
-                    st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
-                    st.download_button(
-                        label="Download Video",
-                        data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
-                        file_name=f"{video_info['snippet']['title']}.mp4",
-                        mime="video/mp4",
-                        key="download_single_button"
-                    )
-                else:
-                    st.warning("No video file was downloaded.")
+                # Handle download in a separate thread to keep the UI responsive
+                thread = threading.Thread(target=handle_download, args=([url], 'mp4'))
+                thread.start()
     
     elif download_type == 'Playlist' and playlist_id:
         videos = get_playlist_videos(playlist_id)
@@ -201,29 +218,9 @@ if url:
 
             if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
-                    st.session_state.download_files.clear()  # Clear previous files
-                    st.session_state.failed_downloads.clear()  # Clear previous failed downloads
-                    download_videos(selected_videos, fmt='mp4')
-                    
-                    if st.session_state.download_files:
-                        st.success("Download of selected videos completed successfully!")
-
-                        # Provide a single download button for all files as a ZIP archive
-                        zip_buffer = create_zip(st.session_state.download_files)
-                        st.download_button(
-                            label="Download All as ZIP",
-                            data=zip_buffer,
-                            file_name="videos.zip",
-                            mime="application/zip",
-                            key="download_zip"
-                        )
-                    else:
-                        st.warning("No videos were downloaded.")
-                    
-                    # Handle retrying failed downloads
-                    if st.session_state.failed_downloads:
-                        st.warning("Retrying failed downloads...")
-                        download_videos(st.session_state.failed_downloads, fmt='mp4')
+                    # Handle download in a separate thread to keep the UI responsive
+                    thread = threading.Thread(target=handle_download, args=(selected_videos, 'mp4'))
+                    thread.start()
                 else:
                     st.warning("No videos selected.")
         else:
@@ -231,8 +228,8 @@ if url:
     
     elif not download_type:
         st.warning("Please select a download type.")
-    elif not video_id and not playlist_id:
-        st.warning("Invalid URL. Please enter a valid YouTube video or playlist URL.")
+    elif not (video_id or playlist_id):
+        st.warning("Please enter a valid YouTube video or playlist URL.")
 
 # Footer with contact icons and information
 st.markdown("""
