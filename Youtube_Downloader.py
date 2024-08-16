@@ -79,12 +79,16 @@ def download_videos(video_urls, fmt='mp4', max_retries=3):
                             failed_videos.append(url)
                         else:
                             st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
+                        sleep(2)  # Adding a short delay before retrying
                     except Exception as e:
                         st.error(f"Unexpected error: {str(e)}")
                         retries += 1
                         if retries == max_retries:
                             st.session_state.download_progress[url] = 'Failed'
                             failed_videos.append(url)
+                        else:
+                            st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
+                        sleep(2)  # Adding a short delay before retrying
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
     finally:
@@ -217,15 +221,10 @@ if url:
 
                 with st.expander("Video List"):
                     for i, video in enumerate(videos):
-                        is_selected = select_all or (start_range - 1 <= i <= end_range - 1)
-                        if deselect_all:
-                            is_selected = False
-                        if st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}"):
+                        checked = st.checkbox(video['title'], value=select_all and (start_range <= i + 1 <= end_range), key=f"video_{i}")
+                        if checked:
                             selected_videos.append(video['url'])
-                            video_info = get_video_info(video['url'].split('/')[-1])
-                            if video_info:
-                                st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
-
+                    
                 if st.button("Download Selected Videos", key="download_button_playlist"):
                     download_videos(selected_videos, fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
