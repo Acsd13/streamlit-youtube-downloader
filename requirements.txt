@@ -2,3 +2,4 @@ streamlit
 yt-dlp
 pytube
 requests
+google-api-python-client
