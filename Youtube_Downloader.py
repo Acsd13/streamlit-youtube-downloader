@@ -271,3 +271,58 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
+# Footer with contact icons and information
+st.markdown("""
+<style>
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #2c3e50;
+    color: white;
+    padding: 15px 0;
+    text-align: center;
+    border-top: 1px solid #34495e;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+.footer .text {
+    margin-bottom: 10px;
+}
+.footer a {
+    color: white;
+    text-decoration: none;
+    margin: 0 5px;
+}
+.footer a:hover {
+    text-decoration: underline;
+}
+.footer img {
+    vertical-align: middle;
+}
+</style>
+<div class="footer">
+    <div class="text">
+        Created by Chohaidi Abdessamad on 13-08-2024
+        <br>
+        For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
+    </div>
+    <div>
+        <a href="https://www.facebook.com/profile.php?id=100091786905006" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" width="24" alt="Facebook">
+        </a>
+        <a href="https://www.instagram.com/chohaidi1311s/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" alt="Instagram">
+        </a>
+        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
+        </a>
+        <a href="mailto:abdessamad.chohaidi@gmail.com" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/64/64572.png" width="24" alt="Email">
+        </a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
