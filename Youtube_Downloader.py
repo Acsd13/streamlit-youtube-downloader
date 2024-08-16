@@ -116,6 +116,19 @@ def get_playlist_id(url):
         st.error(f"Error parsing playlist ID: {str(e)}")
         return None
 
+# Function to extract video ID from URL
+def extract_video_id(url):
+    try:
+        parsed_url = urlparse(url)
+        if 'youtube.com' in parsed_url.netloc:
+            query_params = parse_qs(parsed_url.query)
+            return query_params.get('v', [None])[0]
+        elif 'youtu.be' in parsed_url.netloc:
+            return parsed_url.path.strip('/')
+    except Exception as e:
+        st.error(f"Error extracting video ID: {str(e)}")
+        return None
+
 # Function to get the first video URL or exact video URL from playlist
 def get_first_or_exact_video(playlist_id, url):
     videos = get_playlist_videos(playlist_id)
@@ -149,70 +162,70 @@ url = st.text_input("Enter YouTube URL", key="url_input")
 if url:
     playlist_id = get_playlist_id(url)
     
-    if playlist_id and download_type == 'Single Video':
-        video_url = get_first_or_exact_video(playlist_id, url)
-        if video_url:
-            video_info = get_video_info(video_url.split('/')[-1])  # Use video ID
+    if download_type == 'Single Video':
+        video_id = extract_video_id(url)
+        if video_id:
+            video_info = get_video_info(video_id)
+            if video_info:
+                st.subheader(f"Video Title: {video_info['snippet']['title']}")
+                st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
+                
+                if st.button("Download Video", key="download_button_single"):
+                    download_videos([url], fmt='mp4')
+                    st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+            else:
+                st.warning("Video information could not be retrieved.")
         else:
-            st.warning("No valid video found in the playlist.")
-    elif download_type == 'Playlist':
-        video_info = None  # Playlist handling is done later
-    else:
-        video_info = get_video_info(url.split('/')[-1])  # Use video ID
-    
-    if video_info and download_type == 'Single Video':
-        st.subheader(f"Video Title: {video_info['snippet']['title']}")
-        st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
-        
-        if st.button("Download Video", key="download_button_single"):
-            download_videos([url], fmt='mp4')
-            st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+            st.warning("No valid video ID found in the URL.")
     
     elif download_type == 'Playlist':
-        videos = get_playlist_videos(playlist_id)
-        
-        if videos:
-            st.subheader("Video Selection Options")
-
-            select_all = st.checkbox("Select all videos", value=False, key="select_all")
-            deselect_all = st.checkbox("Deselect all videos", value=False, key="deselect_all")
+        if playlist_id:
+            videos = get_playlist_videos(playlist_id)
             
-            start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1, key="start_range")
-            end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos), key="end_range")
+            if videos:
+                st.subheader("Video Selection Options")
 
-            st.subheader("Playlist Preview")
-            selected_videos = []
+                select_all = st.checkbox("Select all videos", value=False, key="select_all")
+                deselect_all = st.checkbox("Deselect all videos", value=False, key="deselect_all")
+                
+                start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1, key="start_range")
+                end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos), key="end_range")
 
-            with st.expander("Video List"):
-                for i, video in enumerate(videos):
-                    is_selected = select_all or (start_range - 1 <= i <= end_range - 1)
-                    if deselect_all:
-                        is_selected = False
-                    if st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}"):
-                        selected_videos.append(video['url'])
-                        video_info = get_video_info(video['url'].split('/')[-1])
-                        if video_info:
-                            st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
+                st.subheader("Playlist Preview")
+                selected_videos = []
 
-            if st.button("Download Selected Videos", key="download_button_playlist"):
-                if selected_videos:
-                    download_videos(selected_videos, fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
+                with st.expander("Video List"):
+                    for i, video in enumerate(videos):
+                        is_selected = select_all or (start_range - 1 <= i <= end_range - 1)
+                        if deselect_all:
+                            is_selected = False
+                        if st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}"):
+                            selected_videos.append(video['url'])
+                            video_info = get_video_info(extract_video_id(video['url']))
+                            if video_info:
+                                st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
 
-                    # Provide a single download button for all files as a ZIP archive
-                    if st.session_state.download_files:
-                        zip_buffer = create_zip(st.session_state.download_files)
-                        st.download_button(
-                            label="Download All as ZIP",
-                            data=zip_buffer,
-                            file_name="videos.zip",
-                            mime="application/zip",
-                            key="download_zip"
-                        )
-                else:
-                    st.warning("No videos selected.")
+                if st.button("Download Selected Videos", key="download_button_playlist"):
+                    if selected_videos:
+                        download_videos(selected_videos, fmt='mp4')
+                        st.success("Download of selected videos completed successfully!")
+
+                        # Provide a single download button for all files as a ZIP archive
+                        if st.session_state.download_files:
+                            zip_buffer = create_zip(st.session_state.download_files)
+                            st.download_button(
+                                label="Download All as ZIP",
+                                data=zip_buffer,
+                                file_name="videos.zip",
+                                mime="application/zip",
+                                key="download_zip"
+                            )
+                    else:
+                        st.warning("No videos selected.")
+            else:
+                st.warning("No videos found in the playlist.")
         else:
-            st.warning("No videos found in the playlist.")
+            st.warning("Invalid playlist ID.")
 
 # Footer with contact icons and information
 st.markdown("""
