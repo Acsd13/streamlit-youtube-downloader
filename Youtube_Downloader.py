@@ -37,6 +37,13 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
+# Function to handle progress updates
+def progress_hook(d):
+    if d['status'] == 'finished':
+        st.session_state.download_progress[d['filename']] = 'Completed'
+    elif d['status'] == 'downloading':
+        st.session_state.download_progress[d['filename']] = f"Downloading {d['downloaded_bytes'] / d['total_bytes']:.1%}"
+
 # Function to download videos with progress tracking and retry
 def download_videos(video_urls, fmt='mp4', max_retries=3):
     ydl_opts = {
@@ -45,7 +52,7 @@ def download_videos(video_urls, fmt='mp4', max_retries=3):
         'continuedl': True,
         'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]
+        'progress_hooks': [progress_hook]
     }
 
     failed_videos = []
@@ -64,7 +71,7 @@ def download_videos(video_urls, fmt='mp4', max_retries=3):
                         overall_progress.progress((i + 1) / len(video_urls))
                         sleep(0.1)
                         break
-                    except Exception as e:
+                    except yt_dlp.utils.DownloadError as e:
                         st.error(f"Error downloading video {url}: {str(e)}")
                         retries += 1
                         if retries == max_retries:
@@ -72,6 +79,12 @@ def download_videos(video_urls, fmt='mp4', max_retries=3):
                             failed_videos.append(url)
                         else:
                             st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
+                    except Exception as e:
+                        st.error(f"Unexpected error: {str(e)}")
+                        retries += 1
+                        if retries == max_retries:
+                            st.session_state.download_progress[url] = 'Failed'
+                            failed_videos.append(url)
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
     finally:
@@ -170,6 +183,16 @@ if url:
                 if st.button("Download Video", key="download_button_single"):
                     download_videos([video_url], fmt='mp4')
                     st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+                    
+                    # Provide download link
+                    zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")])
+                    st.download_button(
+                        label="Download Video",
+                        data=zip_buffer,
+                        file_name=f"{video_info['snippet']['title']}.zip",
+                        mime="application/zip",
+                        key="download_single_video_zip"
+                    )
             else:
                 st.warning("Failed to fetch video information.")
         else:
@@ -204,23 +227,24 @@ if url:
                                 st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
 
                 if st.button("Download Selected Videos", key="download_button_playlist"):
-                    if selected_videos:
-                        download_videos(selected_videos, fmt='mp4')
-                        st.success("Download of selected videos completed successfully!")
+                    download_videos(selected_videos, fmt='mp4')
+                    st.success("Download of selected videos completed successfully!")
 
-                        if st.session_state.download_files:
-                            zip_buffer = create_zip(st.session_state.download_files)
-                            st.download_button(
-                                label="Download All as ZIP",
-                                data=zip_buffer,
-                                file_name="videos.zip",
-                                mime="application/zip",
-                                key="download_zip"
-                            )
-                    else:
-                        st.warning("No videos selected.")
+                    # Provide zip download link
+                    zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
+                    if zip_files:
+                        zip_buffer = create_zip(zip_files)
+                        st.download_button(
+                            label="Download Playlist",
+                            data=zip_buffer,
+                            file_name="playlist.zip",
+                            mime="application/zip",
+                            key="download_playlist_zip"
+                        )
             else:
-                st.warning("No videos found in the playlist.")
+                st.warning("Failed to fetch playlist videos.")
+        else:
+            st.warning("Invalid playlist URL.")
 
 # Footer with contact icons and information
 st.markdown("""
