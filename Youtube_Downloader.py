@@ -35,45 +35,15 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to download videos with progress tracking
-def download_videos(video_urls, fmt='mp4'):
-    ydl_opts = {
-        'format': fmt,
-        'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-        'continuedl': True,
-        'ignoreerrors': True,
-        'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]  # Use session state
-    }
+# Function to get playlist videos (assuming this is defined elsewhere)
+def get_playlist_videos(playlist_id):
+    # Placeholder function - Implement this to return a list of video dictionaries
+    pass
 
-    total_videos = len(video_urls)
-    overall_progress = st.progress(0)
-    status_container = st.empty()
-    
-    failed_videos = []
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            for i, url in enumerate(video_urls):
-                try:
-                    status_container.subheader(f"Downloading {i+1}/{total_videos}...")
-                    ydl.download([url])
-                    
-                    overall_progress.progress((i + 1) / total_videos)
-                    sleep(0.1)  # Simulate delay for smooth progress bar update
-                except Exception as e:
-                    st.error(f"Error downloading video {url}: {str(e)}")
-                    failed_videos.append(url)
-                    continue  # Skip to the next video in case of an error
-    except Exception as e:
-        st.error(f"Error during download: {str(e)}")
-    finally:
-        overall_progress.empty()
-        status_container.subheader("Download completed!")
-
-    # Retry failed downloads
-    if failed_videos:
-        st.warning("Retrying failed downloads...")
-        download_videos(failed_videos, fmt=fmt)
+# Function to get playlist ID from URL (assuming this is defined elsewhere)
+def get_playlist_id(url):
+    # Placeholder function - Implement this to return the playlist ID
+    pass
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -96,6 +66,55 @@ def get_video_id(url):
     except Exception as e:
         st.error(f"Error parsing video ID: {str(e)}")
         return None
+
+# Function to download videos with progress tracking
+def download_videos(video_urls, fmt='mp4'):
+    ydl_opts = {
+        'format': fmt,
+        'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
+        'continuedl': True,
+        'ignoreerrors': True,
+        'cookiefile': COOKIES_FILE,
+        'progress_hooks': [lambda d: progress_hook(d)]  # Use session state
+    }
+
+    total_videos = len(video_urls)
+    overall_progress = st.progress(0)
+    status_container = st.empty()
+    
+    failed_videos = []
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            for i, url in enumerate(video_urls):
+                try:
+                    status_container.subheader(f"Downloading {i+1}/{total_videos}...")
+                    ydl.download([url])
+                    
+                    overall_progress.progress((i + 1) / total_videos)
+                    st.session_state.download_files.add(os.path.join(DOWNLOAD_DIR, f"{i+1}.mp4"))  # Update session state
+                    sleep(0.1)  # Simulate delay for smooth progress bar update
+                except Exception as e:
+                    st.error(f"Error downloading video {url}: {str(e)}")
+                    failed_videos.append(url)
+                    continue  # Skip to the next video in case of an error
+    except Exception as e:
+        st.error(f"Error during download: {str(e)}")
+    finally:
+        overall_progress.empty()
+        status_container.subheader("Download completed!")
+
+    # Retry failed downloads
+    if failed_videos:
+        st.warning("Retrying failed downloads...")
+        download_videos(failed_videos, fmt=fmt)
+
+# Function to handle progress updates
+def progress_hook(d):
+    if d['status'] == 'finished':
+        print(f"\nDone downloading {d['filename']} ({d['total_bytes']} bytes)")
+    elif d['status'] == 'downloading':
+        percent = d['downloaded_bytes'] / d['total_bytes'] * 100
+        print(f"\rDownloading {d['filename']}: {percent:.2f}%", end='')
 
 # User Interface
 st.title("YouTube Downloader Pro")
