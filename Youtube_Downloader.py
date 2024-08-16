@@ -15,11 +15,13 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
 
 # YouTube Data API key
-API_KEY = 'AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU'  # Replace with your YouTube Data API key
+API_KEY = 'YOUR_API_KEY'  # Replace with your YouTube Data API key
 
-# Initialize session state for download files
+# Initialize session state for download files and tracking
 if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
+if 'download_progress' not in st.session_state:
+    st.session_state.download_progress = {}
 
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
@@ -35,57 +37,59 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to download videos with progress tracking
-def download_videos(video_urls, fmt='mp4'):
+# Function to download videos with progress tracking and retry
+def download_videos(video_urls, fmt='mp4', max_retries=3):
     ydl_opts = {
         'format': fmt,
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]  # Use session state
+        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]
     }
 
-    total_videos = len(video_urls)
+    failed_videos = []
     overall_progress = st.progress(0)
     status_container = st.empty()
     
-    failed_videos = []
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             for i, url in enumerate(video_urls):
-                try:
-                    status_container.subheader(f"Downloading {i+1}/{total_videos}...")
-                    ydl.download([url])
-                    
-                    overall_progress.progress((i + 1) / total_videos)
-                    sleep(0.1)  # Simulate delay for smooth progress bar update
-                except Exception as e:
-                    st.error(f"Error downloading video {url}: {str(e)}")
-                    failed_videos.append(url)
-                    continue  # Skip to the next video in case of an error
+                retries = 0
+                while retries < max_retries:
+                    try:
+                        status_container.subheader(f"Downloading {i+1}/{len(video_urls)}...")
+                        ydl.download([url])
+                        st.session_state.download_progress[url] = 'Completed'
+                        overall_progress.progress((i + 1) / len(video_urls))
+                        sleep(0.1)
+                        break
+                    except Exception as e:
+                        st.error(f"Error downloading video {url}: {str(e)}")
+                        retries += 1
+                        if retries == max_retries:
+                            st.session_state.download_progress[url] = 'Failed'
+                            failed_videos.append(url)
+                        else:
+                            st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
-    # Retry failed downloads
     if failed_videos:
         st.warning("Retrying failed downloads...")
-        download_videos(failed_videos, fmt=fmt)
+        download_videos(failed_videos, fmt=fmt, max_retries=max_retries)
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as zip_file:
         for file_path in files:
-            st.write(f"Attempting to add file: {file_path}")  # Debugging
-            if os.path.exists(file_path):  # Check if file exists
+            if os.path.exists(file_path):
                 file_name = os.path.basename(file_path)
                 zip_file.write(file_path, file_name)
-            else:
-                st.error(f"File not found: {file_path}")  # Log missing file
     buffer.seek(0)
     return buffer
 
@@ -113,7 +117,7 @@ def get_playlist_id(url):
         st.error(f"Error parsing playlist ID: {str(e)}")
         return None
 
-# Function to get videos from playlist
+# Function to get videos from a playlist using YouTube Data API
 def get_playlist_videos(playlist_id):
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     videos = []
@@ -121,19 +125,18 @@ def get_playlist_videos(playlist_id):
         request = youtube.playlistItems().list(
             part='snippet',
             playlistId=playlist_id,
-            maxResults=50  # Adjust as needed
+            maxResults=50
         )
         response = request.execute()
         for item in response['items']:
             video_id = item['snippet']['resourceId']['videoId']
             video_title = item['snippet']['title']
-            videos.append({
-                'url': f"https://www.youtube.com/watch?v={video_id}",
-                'title': video_title
-            })
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            videos.append({'title': video_title, 'url': video_url})
+        return videos
     except Exception as e:
         st.error(f"Error fetching playlist videos: {str(e)}")
-    return videos
+        return []
 
 # User Interface
 st.title("YouTube Downloader Pro")
@@ -201,7 +204,6 @@ if url:
                         download_videos(selected_videos, fmt='mp4')
                         st.success("Download of selected videos completed successfully!")
 
-                        # Provide a single download button for all files as a ZIP archive
                         if st.session_state.download_files:
                             zip_buffer = create_zip(st.session_state.download_files)
                             st.download_button(
@@ -216,61 +218,6 @@ if url:
             else:
                 st.warning("No videos found in the playlist.")
 
-# Footer with contact icons and information
-st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background-color: #2c3e50;
-    color: white;
-    padding: 15px 0;
-    text-align: center;
-    border-top: 1px solid #34495e;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-}
-.footer .text {
-    margin-bottom: 10px;
-}
-.footer a {
-    color: white;
-    text-decoration: none;
-    margin: 0 5px;
-}
-.footer a:hover {
-    text-decoration: underline;
-}
-.footer img {
-    vertical-align: middle;
-}
-</style>
-<div class="footer">
-    <div class="text">
-        Created by Chohaidi Abdessamad on 13-08-2024
-        <br>
-        For more information or inquiries, feel free to <a href="mailto:abdessamad.chohaidi@gmail.com">contact me</a>.
-    </div>
-    <div>
-        <a href="https://www.facebook.com/profile.php?id=100091786905006" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174848.png" width="24" alt="Facebook">
-        </a>
-        <a href="https://www.instagram.com/chohaidi1311s/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174855.png" width="24" alt="Instagram">
-        </a>
-        <a href="https://www.linkedin.com/in/abdessamad-chohaidi/" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="24" alt="LinkedIn">
-        </a>
-        <a href="mailto:abdessamad.chohaidi@gmail.com" target="_blank">
-            <img src="https://cdn-icons-png.flaticon.com/512/64/64572.png" width="24" alt="Email">
-        </a>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 # Footer with contact icons and information
 st.markdown("""
 <style>
