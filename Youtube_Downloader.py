@@ -35,59 +35,6 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to get playlist videos
-def get_playlist_videos(playlist_id):
-    youtube = build('youtube', 'v3', developerKey=API_KEY)
-    videos = []
-    try:
-        request = youtube.playlistItems().list(
-            part='snippet',
-            playlistId=playlist_id,
-            maxResults=50
-        )
-        response = request.execute()
-        for item in response['items']:
-            video_id = item['snippet']['resourceId']['videoId']
-            video_title = item['snippet']['title']
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            videos.append({'title': video_title, 'url': video_url})
-        return videos
-    except Exception as e:
-        st.error(f"Error fetching playlist videos: {str(e)}")
-        return []
-
-# Function to get playlist ID from URL
-def get_playlist_id(url):
-    try:
-        parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-        return query_params.get('list', [None])[0]
-    except Exception as e:
-        st.error(f"Error parsing playlist ID: {str(e)}")
-        return None
-
-# Function to create a ZIP file for all downloaded files
-def create_zip(files):
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as zip_file:
-        for file_path in files:
-            file_name = os.path.basename(file_path)
-            zip_file.write(file_path, file_name)
-    buffer.seek(0)
-    return buffer
-
-# Function to get video ID from URL
-def get_video_id(url):
-    try:
-        parsed_url = urlparse(url)
-        if 'watch' in parsed_url.path:
-            query_params = parse_qs(parsed_url.query)
-            return query_params.get('v', [None])[0]
-        return None
-    except Exception as e:
-        st.error(f"Error parsing video ID: {str(e)}")
-        return None
-
 # Function to download videos with progress tracking
 def download_videos(video_urls, fmt='mp4'):
     ydl_opts = {
@@ -96,7 +43,7 @@ def download_videos(video_urls, fmt='mp4'):
         'continuedl': True,
         'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
-        'progress_hooks': [lambda d: progress_hook(d)]  # Use session state
+        'progress_hooks': [lambda d: progress_hook(d, st.session_state.download_files)]  # Use session state
     }
 
     total_videos = len(video_urls)
@@ -112,8 +59,6 @@ def download_videos(video_urls, fmt='mp4'):
                     ydl.download([url])
                     
                     overall_progress.progress((i + 1) / total_videos)
-                    # Update session state
-                    st.session_state.download_files.add(os.path.join(DOWNLOAD_DIR, f"{i+1}.mp4"))  
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
@@ -130,13 +75,65 @@ def download_videos(video_urls, fmt='mp4'):
         st.warning("Retrying failed downloads...")
         download_videos(failed_videos, fmt=fmt)
 
-# Function to handle progress updates
-def progress_hook(d):
-    if d['status'] == 'finished':
-        print(f"\nDone downloading {d['filename']} ({d['total_bytes']} bytes)")
-    elif d['status'] == 'downloading':
-        percent = d['downloaded_bytes'] / d['total_bytes'] * 100
-        print(f"\rDownloading {d['filename']}: {percent:.2f}%", end='')
+# Function to create a ZIP file for all downloaded files
+def create_zip(files):
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zip_file:
+        for file_path in files:
+            st.write(f"Attempting to add file: {file_path}")  # Debugging
+            if os.path.exists(file_path):  # Check if file exists
+                file_name = os.path.basename(file_path)
+                zip_file.write(file_path, file_name)
+            else:
+                st.error(f"File not found: {file_path}")  # Log missing file
+    buffer.seek(0)
+    return buffer
+
+# Function to get video ID from URL
+def get_video_id(url):
+    try:
+        parsed_url = urlparse(url)
+        if 'watch' in parsed_url.path:
+            query_params = parse_qs(parsed_url.query)
+            return query_params.get('v', [None])[0]
+        return None
+    except Exception as e:
+        st.error(f"Error parsing video ID: {str(e)}")
+        return None
+
+# Function to get playlist ID from URL
+def get_playlist_id(url):
+    try:
+        parsed_url = urlparse(url)
+        if 'playlist' in parsed_url.path:
+            query_params = parse_qs(parsed_url.query)
+            return query_params.get('list', [None])[0]
+        return None
+    except Exception as e:
+        st.error(f"Error parsing playlist ID: {str(e)}")
+        return None
+
+# Function to get videos from playlist
+def get_playlist_videos(playlist_id):
+    youtube = build('youtube', 'v3', developerKey=API_KEY)
+    videos = []
+    try:
+        request = youtube.playlistItems().list(
+            part='snippet',
+            playlistId=playlist_id,
+            maxResults=50  # Adjust as needed
+        )
+        response = request.execute()
+        for item in response['items']:
+            video_id = item['snippet']['resourceId']['videoId']
+            video_title = item['snippet']['title']
+            videos.append({
+                'url': f"https://www.youtube.com/watch?v={video_id}",
+                'title': video_title
+            })
+    except Exception as e:
+        st.error(f"Error fetching playlist videos: {str(e)}")
+    return videos
 
 # User Interface
 st.title("YouTube Downloader Pro")
@@ -166,17 +163,6 @@ if url:
                 if st.button("Download Video", key="download_button_single"):
                     download_videos([video_url], fmt='mp4')
                     st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
-                    
-                    # Provide download button for the video
-                    downloaded_file_path = os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")
-                    if os.path.exists(downloaded_file_path):
-                        with open(downloaded_file_path, "rb") as f:
-                            st.download_button(
-                                label="Download Video File",
-                                data=f,
-                                file_name=os.path.basename(downloaded_file_path),
-                                mime="video/mp4"
-                            )
             else:
                 st.warning("Failed to fetch video information.")
         else:
@@ -185,7 +171,6 @@ if url:
     elif download_type == 'Playlist':
         playlist_id = get_playlist_id(url)
         if playlist_id:
-            st.write(f"Fetching videos from playlist ID: {playlist_id}")  # Debugging
             videos = get_playlist_videos(playlist_id)
             
             if videos:
@@ -230,8 +215,6 @@ if url:
                         st.warning("No videos selected.")
             else:
                 st.warning("No videos found in the playlist.")
-        else:
-            st.warning("Invalid playlist URL or unable to extract playlist ID.")
 
 # Footer with contact icons and information
 st.markdown("""
