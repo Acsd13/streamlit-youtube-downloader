@@ -129,6 +129,8 @@ def get_playlist_videos(playlist_id):
 # Initialize session state for download files
 if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
+if 'failed_downloads' not in st.session_state:
+    st.session_state.failed_downloads = []
 
 # User Interface
 st.title("YouTube Downloader Pro")
@@ -157,10 +159,19 @@ if url:
             st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
             
             if st.button("Download Video", key="download_button_single"):
+                st.session_state.download_files.clear()  # Clear previous files
                 download_videos([url], fmt='mp4')
-                st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
-        else:
-            st.warning("No valid video found.")
+                if st.session_state.download_files:
+                    st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+                    st.download_button(
+                        label="Download Video",
+                        data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
+                        file_name=f"{video_info['snippet']['title']}.mp4",
+                        mime="video/mp4",
+                        key="download_single_button"
+                    )
+                else:
+                    st.warning("No video file was downloaded.")
     
     elif download_type == 'Playlist' and playlist_id:
         videos = get_playlist_videos(playlist_id)
@@ -190,11 +201,14 @@ if url:
 
             if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
+                    st.session_state.download_files.clear()  # Clear previous files
+                    st.session_state.failed_downloads.clear()  # Clear previous failed downloads
                     download_videos(selected_videos, fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
-
-                    # Provide a single download button for all files as a ZIP archive
+                    
                     if st.session_state.download_files:
+                        st.success("Download of selected videos completed successfully!")
+
+                        # Provide a single download button for all files as a ZIP archive
                         zip_buffer = create_zip(st.session_state.download_files)
                         st.download_button(
                             label="Download All as ZIP",
@@ -203,6 +217,13 @@ if url:
                             mime="application/zip",
                             key="download_zip"
                         )
+                    else:
+                        st.warning("No videos were downloaded.")
+                    
+                    # Handle retrying failed downloads
+                    if st.session_state.failed_downloads:
+                        st.warning("Retrying failed downloads...")
+                        download_videos(st.session_state.failed_downloads, fmt='mp4')
                 else:
                     st.warning("No videos selected.")
         else:
