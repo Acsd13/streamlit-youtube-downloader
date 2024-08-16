@@ -155,11 +155,10 @@ The ultimate solution for downloading videos or playlists from YouTube with ease
 """)
 
 # Download options
-st.sidebar.header("Download Options")
-download_type = st.sidebar.radio("Choose download type", ['Single Video', 'Playlist'], key="download_type")
+download_type = st.radio("Choose download type", ['Single Video', 'Playlist'], key="download_type")
 
 # URL input
-url = st.sidebar.text_input("Enter YouTube URL", key="url_input")
+url = st.text_input("Enter YouTube URL", key="url_input")
 
 if url:
     playlist_id = get_playlist_id(url)
@@ -180,13 +179,13 @@ if url:
         
         formats = get_available_formats(video_url if playlist_id else url)
         if formats:
-            quality_fmt = st.sidebar.selectbox("Choose quality and format", formats, key="format_select")
+            quality_fmt = st.selectbox("Choose quality and format", formats, key="format_select")
             selected_format = quality_fmt.split(" - ")[0]
         else:
             st.warning("No available formats found.")
             selected_format = 'best'
         
-        if st.sidebar.button("Download Video", key="download_button_single"):
+        if st.button("Download Video", key="download_button_single"):
             download_videos([video_url if playlist_id else url], quality=selected_format)
             st.success(f"Download of '{video_info['title']}' completed successfully!")
     elif download_type == 'Playlist':
@@ -213,7 +212,7 @@ if url:
                     if is_selected:
                         selected_videos.append(video['url'])
 
-            if st.sidebar.button("Download Selected Videos", key="download_button_playlist"):
+            if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
