@@ -1,5 +1,6 @@
 import streamlit as st
 import yt_dlp
+from googleapiclient.discovery import build
 from time import sleep
 from urllib.parse import urlparse, parse_qs
 import os
@@ -13,25 +14,24 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # Path to cookies file
 COOKIES_FILE = 'cookies.txt'
 
-# Function to extract video info
-def get_video_info(url):
-    ydl_opts = {
-        'quiet': True,
-        'cookiefile': COOKIES_FILE
-    }
+# YouTube Data API key
+API_KEY = 'YOUR_API_KEY'
+
+# Function to get video info using YouTube Data API
+def get_video_info(video_id):
+    youtube = build('youtube', 'v3', developerKey=API_KEY)
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=False)
-    except yt_dlp.utils.ExtractorError as e:
-        st.error(f"Error extracting video info: {str(e)}")
-        if "captcha" in str(e).lower():
-            st.warning("You may need to solve a CAPTCHA. Please check your cookies and try again.")
-        return None
+        request = youtube.videos().list(
+            part='snippet,contentDetails,statistics',
+            id=video_id
+        )
+        response = request.execute()
+        return response['items'][0] if response['items'] else None
     except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
+        st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to extract videos from a playlist
+# Function to get playlist videos
 def get_playlist_videos(playlist_id):
     url = f"https://www.youtube.com/playlist?list={playlist_id}"
     ydl_opts = {
@@ -47,55 +47,19 @@ def get_playlist_videos(playlist_id):
             else:
                 st.warning("This link is not a valid playlist.")
                 return []
-    except yt_dlp.utils.ExtractorError as e:
+    except Exception as e:
         st.error(f"Error extracting playlist: {str(e)}")
-        return []
-    except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
-        return []
-
-# Function to extract available formats of a video
-def get_available_formats(url):
-    ydl_opts = {
-        'quiet': True,
-        'cookiefile': COOKIES_FILE
-    }
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            formats = info_dict.get('formats', [])
-            format_list = []
-            for f in formats:
-                format_id = f.get('format_id', 'N/A')
-                ext = f.get('ext', 'N/A')
-                resolution = f.get('height', 'N/A')
-                fps = f.get('fps', 'N/A')
-                filesize = f.get('filesize', 'N/A')
-                
-                if ext == 'mp4' and resolution in [1080, 720, 480, 360]:
-                    format_entry = f"{format_id} - {ext.upper()} ({resolution}p, {fps}fps, {filesize}B)"
-                    format_list.append(format_entry)
-
-            return format_list
-    except yt_dlp.utils.ExtractorError as e:
-        st.error(f"Error extracting available formats: {str(e)}")
-        return []
-    except Exception as e:
-        st.error(f"Unexpected error: {str(e)}")
         return []
 
 # Function to handle download progress
 def progress_hook(d, download_files):
     if d['status'] == 'finished':
         download_files.add(d['filename'])
-    elif d['status'] == 'error':
-        st.warning(f"Error downloading file: {d.get('filename', 'Unknown file')}")
 
 # Function to download videos with progress tracking
 def download_videos(video_urls, fmt='mp4'):
-    failed_videos = []
     ydl_opts = {
-        'format': f'best/{fmt}',
+        'format': fmt,
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'continuedl': True,
         'ignoreerrors': True,
@@ -107,6 +71,7 @@ def download_videos(video_urls, fmt='mp4'):
     overall_progress = st.progress(0)
     status_container = st.empty()
     
+    failed_videos = []
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             for i, url in enumerate(video_urls):
@@ -118,7 +83,7 @@ def download_videos(video_urls, fmt='mp4'):
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
-                    failed_videos.append(url)  # Track failed videos
+                    failed_videos.append(url)
                     continue  # Skip to the next video in case of an error
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
@@ -126,17 +91,10 @@ def download_videos(video_urls, fmt='mp4'):
         overall_progress.empty()
         status_container.subheader("Download completed!")
 
-        # Verify if all videos are downloaded
-        downloaded_files = os.listdir(DOWNLOAD_DIR)
-        if len(downloaded_files) == total_videos:
-            st.success("All videos have been downloaded successfully!")
-        else:
-            st.warning("Some videos may not have been downloaded. Please check the logs.")
-        
-        # Retry downloading failed videos
-        if failed_videos:
-            st.warning("Retrying failed downloads...")
-            download_videos(failed_videos, fmt='mp4')  # Retry failed downloads
+    # Retry failed downloads
+    if failed_videos:
+        st.warning("Retrying failed downloads...")
+        download_videos(failed_videos, fmt=fmt)
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -182,6 +140,7 @@ The ultimate solution for downloading videos or playlists from YouTube with ease
 """)
 
 # Download options
+st.header("Download Options")
 download_type = st.radio("Choose download type", ['Single Video', 'Playlist'], key="download_type")
 
 # URL input
@@ -193,30 +152,22 @@ if url:
     if playlist_id and download_type == 'Single Video':
         video_url = get_first_or_exact_video(playlist_id, url)
         if video_url:
-            video_info = get_video_info(video_url)
+            video_info = get_video_info(video_url.split('/')[-1])  # Use video ID
         else:
             st.warning("No valid video found in the playlist.")
     elif download_type == 'Playlist':
         video_info = None  # Playlist handling is done later
     else:
-        video_info = get_video_info(url)
+        video_info = get_video_info(url.split('/')[-1])  # Use video ID
     
     if video_info and download_type == 'Single Video':
-        st.subheader(f"Video Title: {video_info['title']}")
-        
-        formats = get_available_formats(video_url if playlist_id else url)
-        if formats:
-            st.text("Available Formats:")
-            for fmt in formats:
-                st.text(fmt)
-            selected_format = 'best'  # Default quality for single video
-        else:
-            st.warning("No available formats found.")
-            selected_format = 'best'
+        st.subheader(f"Video Title: {video_info['snippet']['title']}")
+        st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
         
         if st.button("Download Video", key="download_button_single"):
-            download_videos([video_url if playlist_id else url], fmt='mp4')
-            st.success(f"Download of '{video_info['title']}' completed successfully!")
+            download_videos([url], fmt='mp4')
+            st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+    
     elif download_type == 'Playlist':
         videos = get_playlist_videos(playlist_id)
         
@@ -239,6 +190,9 @@ if url:
                         is_selected = False
                     if st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}"):
                         selected_videos.append(video['url'])
+                        video_info = get_video_info(video['url'].split('/')[-1])
+                        if video_info:
+                            st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
 
             if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
