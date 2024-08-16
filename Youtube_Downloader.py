@@ -96,6 +96,36 @@ def get_video_id(url):
         st.error(f"Error parsing video ID: {str(e)}")
         return None
 
+# Function to get playlist ID from URL
+def get_playlist_id(url):
+    try:
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('list', [None])[0]
+    except Exception as e:
+        st.error(f"Error parsing playlist ID: {str(e)}")
+        return None
+
+# Function to get playlist videos
+def get_playlist_videos(playlist_id):
+    url = f"https://www.youtube.com/playlist?list={playlist_id}"
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'cookiefile': COOKIES_FILE
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            if 'entries' in info_dict:
+                return info_dict['entries']
+            else:
+                st.warning("This link is not a valid playlist.")
+                return []
+    except Exception as e:
+        st.error(f"Error extracting playlist: {str(e)}")
+        return []
+
 # Initialize session state for download files
 if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
@@ -117,8 +147,9 @@ url = st.text_input("Enter YouTube URL", key="url_input")
 
 if url:
     video_id = get_video_id(url)
+    playlist_id = get_playlist_id(url)
     
-    if video_id and download_type == 'Single Video':
+    if download_type == 'Single Video' and video_id:
         video_info = get_video_info(video_id)
         
         if video_info:
@@ -131,8 +162,7 @@ if url:
         else:
             st.warning("No valid video found.")
     
-    elif download_type == 'Playlist':
-        playlist_id = get_playlist_id(url)
+    elif download_type == 'Playlist' and playlist_id:
         videos = get_playlist_videos(playlist_id)
         
         if videos:
@@ -177,6 +207,11 @@ if url:
                     st.warning("No videos selected.")
         else:
             st.warning("No videos found in the playlist.")
+    
+    elif not download_type:
+        st.warning("Please select a download type.")
+    elif not video_id and not playlist_id:
+        st.warning("Invalid URL. Please enter a valid YouTube video or playlist URL.")
 
 # Footer with contact icons and information
 st.markdown("""
