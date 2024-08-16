@@ -6,6 +6,12 @@ from urllib.parse import urlparse, parse_qs
 import os
 import zipfile
 import io
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -22,6 +28,26 @@ if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
 if 'download_progress' not in st.session_state:
     st.session_state.download_progress = {}
+
+# Set up Selenium WebDriver
+def create_selenium_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode for no GUI
+    chrome_driver_path = '/path/to/chromedriver'  # Replace with path to your ChromeDriver
+    service = Service(chrome_driver_path)
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver
+
+# Function to handle CAPTCHA using Selenium
+def solve_captcha(url):
+    driver = create_selenium_driver()
+    driver.get(url)
+    try:
+        # Example of interacting with a CAPTCHA iframe (customize this based on actual CAPTCHA type)
+        WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe[src*='captcha']")))
+        # Add CAPTCHA solving code or manual intervention steps here
+    finally:
+        driver.quit()
 
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
@@ -185,18 +211,22 @@ if url:
                 st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
                 
                 if st.button("Download Video", key="download_button_single"):
-                    download_videos([video_url], fmt='mp4')
-                    st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
-                    
-                    # Provide download link
-                    zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")])
-                    st.download_button(
-                        label="Download Video",
-                        data=zip_buffer,
-                        file_name=f"{video_info['snippet']['title']}.zip",
-                        mime="application/zip",
-                        key="download_single_video_zip"
-                    )
+                    try:
+                        solve_captcha(video_url)
+                        download_videos([video_url], fmt='mp4')
+                        st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
+                        
+                        # Provide download link
+                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")])
+                        st.download_button(
+                            label="Download Video",
+                            data=zip_buffer,
+                            file_name=f"{video_info['snippet']['title']}.zip",
+                            mime="application/zip",
+                            key="download_single_video_zip"
+                        )
+                    except Exception as e:
+                        st.error(f"Failed to solve CAPTCHA or download video: {str(e)}")
             else:
                 st.warning("Failed to fetch video information.")
         else:
@@ -227,20 +257,23 @@ if url:
                     
                 if st.button("Download Selected Videos", key="download_button_playlist"):
                     if selected_videos:
-                        download_videos(selected_videos, fmt='mp4')
-                        st.success("Download of selected videos completed successfully!")
+                        try:
+                            download_videos(selected_videos, fmt='mp4')
+                            st.success("Download of selected videos completed successfully!")
 
-                        # Provide zip download link
-                        zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
-                        if zip_files:
-                            zip_buffer = create_zip(zip_files)
-                            st.download_button(
-                                label="Download Playlist",
-                                data=zip_buffer,
-                                file_name="playlist.zip",
-                                mime="application/zip",
-                                key="download_playlist_zip"
-                            )
+                            # Provide zip download link
+                            zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
+                            if zip_files:
+                                zip_buffer = create_zip(zip_files)
+                                st.download_button(
+                                    label="Download Playlist",
+                                    data=zip_buffer,
+                                    file_name="playlist.zip",
+                                    mime="application/zip",
+                                    key="download_playlist_zip"
+                                )
+                        except Exception as e:
+                            st.error(f"Failed to download selected videos: {str(e)}")
                     else:
                         st.warning("No videos selected.")
             else:
