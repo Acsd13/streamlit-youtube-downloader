@@ -35,15 +35,36 @@ def get_video_info(video_id):
         st.error(f"Error fetching video info: {str(e)}")
         return None
 
-# Function to get playlist videos (implement this as needed)
+# Function to get playlist videos
 def get_playlist_videos(playlist_id):
-    # Placeholder function - Implement this to return a list of video dictionaries
-    return []
+    youtube = build('youtube', 'v3', developerKey=API_KEY)
+    videos = []
+    try:
+        request = youtube.playlistItems().list(
+            part='snippet',
+            playlistId=playlist_id,
+            maxResults=50
+        )
+        response = request.execute()
+        for item in response['items']:
+            video_id = item['snippet']['resourceId']['videoId']
+            video_title = item['snippet']['title']
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            videos.append({'title': video_title, 'url': video_url})
+        return videos
+    except Exception as e:
+        st.error(f"Error fetching playlist videos: {str(e)}")
+        return []
 
-# Function to get playlist ID from URL (implement this as needed)
+# Function to get playlist ID from URL
 def get_playlist_id(url):
-    # Placeholder function - Implement this to return the playlist ID
-    return None
+    try:
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('list', [None])[0]
+    except Exception as e:
+        st.error(f"Error parsing playlist ID: {str(e)}")
+        return None
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -164,6 +185,7 @@ if url:
     elif download_type == 'Playlist':
         playlist_id = get_playlist_id(url)
         if playlist_id:
+            st.write(f"Fetching videos from playlist ID: {playlist_id}")  # Debugging
             videos = get_playlist_videos(playlist_id)
             
             if videos:
@@ -208,6 +230,8 @@ if url:
                         st.warning("No videos selected.")
             else:
                 st.warning("No videos found in the playlist.")
+        else:
+            st.warning("Invalid playlist URL or unable to extract playlist ID.")
 
 # Footer with contact icons and information
 st.markdown("""
