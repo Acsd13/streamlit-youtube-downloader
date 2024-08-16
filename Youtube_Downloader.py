@@ -15,7 +15,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
 
 # YouTube Data API key
-API_KEY = 'YOUR_API_KEY'
+API_KEY = 'AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU'
 
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
