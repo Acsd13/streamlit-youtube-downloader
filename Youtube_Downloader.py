@@ -142,6 +142,11 @@ def get_first_or_exact_video(playlist_id, url):
         return videos[0]['url']  # Default to first video if exact URL not found
     return None
 
+# Function to check if all files are downloaded
+def check_all_files_downloaded(expected_files):
+    downloaded_files = set(os.listdir(DOWNLOAD_DIR))
+    return all(file in downloaded_files for file in expected_files)
+
 # Initialize session state for download files
 if 'download_files' not in st.session_state:
     st.session_state.download_files = set()
@@ -217,8 +222,9 @@ if url:
                     download_videos(selected_videos, quality='best', fmt='mp4')
                     st.success("Download of selected videos completed successfully!")
 
-                    # Provide a single download button for all files as a ZIP archive
-                    if st.session_state.download_files:
+                    # Check if all videos are downloaded
+                    if check_all_files_downloaded([os.path.basename(urlparse(v).path) for v in selected_videos]):
+                        # Provide a single download button for all files as a ZIP archive
                         zip_buffer = create_zip(st.session_state.download_files)
                         st.download_button(
                             label="Download All as ZIP",
@@ -227,6 +233,8 @@ if url:
                             mime="application/zip",
                             key="download_zip"
                         )
+                    else:
+                        st.warning("Not all videos could be downloaded.")
                 else:
                     st.warning("No videos selected.")
         else:
