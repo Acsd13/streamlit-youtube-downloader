@@ -15,7 +15,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
 
 # YouTube Data API key
-API_KEY = 'YOUR_API_KEY_HERE'  # Replace with your YouTube Data API key
+API_KEY = 'AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU'  # Replace with your YouTube Data API key
 
 # Initialize session state for download files
 if 'download_files' not in st.session_state:
