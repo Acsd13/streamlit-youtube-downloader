@@ -22,8 +22,13 @@ def get_video_info(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
-    except Exception as e:
+    except yt_dlp.utils.ExtractorError as e:
         st.error(f"Error extracting video info: {str(e)}")
+        if "captcha" in str(e).lower():
+            st.warning("You may need to solve a CAPTCHA. Please check your cookies and try again.")
+        return None
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
         return None
 
 # Function to extract videos from a playlist
@@ -42,8 +47,11 @@ def get_playlist_videos(playlist_id):
             else:
                 st.warning("This link is not a valid playlist.")
                 return []
-    except Exception as e:
+    except yt_dlp.utils.ExtractorError as e:
         st.error(f"Error extracting playlist: {str(e)}")
+        return []
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
         return []
 
 # Function to extract available formats of a video
@@ -69,17 +77,23 @@ def get_available_formats(url):
                     format_list.append(format_entry)
 
             return format_list
-    except Exception as e:
+    except yt_dlp.utils.ExtractorError as e:
         st.error(f"Error extracting available formats: {str(e)}")
+        return []
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
         return []
 
 # Function to handle download progress
 def progress_hook(d, download_files):
     if d['status'] == 'finished':
         download_files.add(d['filename'])
+    elif d['status'] == 'error':
+        st.warning(f"Error downloading file: {d.get('filename', 'Unknown file')}")
 
 # Function to download videos with progress tracking
 def download_videos(video_urls, fmt='mp4'):
+    failed_videos = []
     ydl_opts = {
         'format': f'best/{fmt}',
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
@@ -104,6 +118,7 @@ def download_videos(video_urls, fmt='mp4'):
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
+                    failed_videos.append(url)  # Track failed videos
                     continue  # Skip to the next video in case of an error
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
@@ -117,6 +132,11 @@ def download_videos(video_urls, fmt='mp4'):
             st.success("All videos have been downloaded successfully!")
         else:
             st.warning("Some videos may not have been downloaded. Please check the logs.")
+        
+        # Retry downloading failed videos
+        if failed_videos:
+            st.warning("Retrying failed downloads...")
+            download_videos(failed_videos, fmt='mp4')  # Retry failed downloads
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -217,8 +237,7 @@ if url:
                     is_selected = select_all or (start_range - 1 <= i <= end_range - 1)
                     if deselect_all:
                         is_selected = False
-                    st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}")
-                    if is_selected:
+                    if st.checkbox(video['title'], value=is_selected, key=f"checkbox_{i}"):
                         selected_videos.append(video['url'])
 
             if st.button("Download Selected Videos", key="download_button_playlist"):
