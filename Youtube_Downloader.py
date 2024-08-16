@@ -109,10 +109,8 @@ def get_video_id(url):
 def get_playlist_id(url):
     try:
         parsed_url = urlparse(url)
-        if 'playlist' in parsed_url.path:
-            query_params = parse_qs(parsed_url.query)
-            return query_params.get('list', [None])[0]
-        return None
+        query_params = parse_qs(parsed_url.query)
+        return query_params.get('list', [None])[0]
     except Exception as e:
         st.error(f"Error parsing playlist ID: {str(e)}")
         return None
@@ -122,17 +120,23 @@ def get_playlist_videos(playlist_id):
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     videos = []
     try:
-        request = youtube.playlistItems().list(
-            part='snippet',
-            playlistId=playlist_id,
-            maxResults=50
-        )
-        response = request.execute()
-        for item in response['items']:
-            video_id = item['snippet']['resourceId']['videoId']
-            video_title = item['snippet']['title']
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            videos.append({'title': video_title, 'url': video_url})
+        next_page_token = None
+        while True:
+            request = youtube.playlistItems().list(
+                part='snippet',
+                playlistId=playlist_id,
+                maxResults=50,
+                pageToken=next_page_token
+            )
+            response = request.execute()
+            for item in response['items']:
+                video_id = item['snippet']['resourceId']['videoId']
+                video_title = item['snippet']['title']
+                video_url = f"https://www.youtube.com/watch?v={video_id}"
+                videos.append({'title': video_title, 'url': video_url})
+            next_page_token = response.get('nextPageToken')
+            if not next_page_token:
+                break
         return videos
     except Exception as e:
         st.error(f"Error fetching playlist videos: {str(e)}")
