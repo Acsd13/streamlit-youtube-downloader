@@ -22,8 +22,14 @@ def get_video_info(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             return ydl.extract_info(url, download=False)
+    except yt_dlp.utils.DownloadError as e:
+        if "Sign in to confirm you’re not a bot" in str(e):
+            st.warning("Captcha or sign-in required. Please check your cookies file or try to solve the CAPTCHA manually.")
+        else:
+            st.error(f"Error extracting video info: {str(e)}")
+        return None
     except Exception as e:
-        st.error(f"Error extracting video info: {str(e)}")
+        st.error(f"Unexpected error extracting video info: {str(e)}")
         return None
 
 # Function to extract videos from a playlist
@@ -93,6 +99,8 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
     overall_progress = st.progress(0)
     status_container = st.empty()
     
+    failed_videos = []
+    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             for i, url in enumerate(video_urls):
@@ -104,12 +112,18 @@ def download_videos(video_urls, quality='best', fmt='mp4'):
                     sleep(0.1)  # Simulate delay for smooth progress bar update
                 except Exception as e:
                     st.error(f"Error downloading video {url}: {str(e)}")
+                    failed_videos.append(url)  # Add to failed videos list
                     continue  # Skip to the next video in case of an error
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
     finally:
         overall_progress.empty()
         status_container.subheader("Download completed!")
+
+        # Retry failed videos
+        if failed_videos:
+            st.warning("Some videos failed to download. Retrying...")
+            download_videos(failed_videos, quality=quality, fmt=fmt)
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -220,12 +234,10 @@ if url:
             if st.button("Download Selected Videos", key="download_button_playlist"):
                 if selected_videos:
                     download_videos(selected_videos, quality='best', fmt='mp4')
-                    st.success("Download of selected videos completed successfully!")
 
-                    # Check if all videos are downloaded
-                    if check_all_files_downloaded([os.path.basename(urlparse(v).path) for v in selected_videos]):
-                        # Provide a single download button for all files as a ZIP archive
-                        zip_buffer = create_zip(st.session_state.download_files)
+                    # Check if all videos are downloaded and provide a ZIP download option
+                    if check_all_files_downloaded([os.path.basename(urlparse(v).path) + ".mp4" for v in selected_videos]):
+                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, os.path.basename(urlparse(v).path) + ".mp4") for v in selected_videos])
                         st.download_button(
                             label="Download All as ZIP",
                             data=zip_buffer,
