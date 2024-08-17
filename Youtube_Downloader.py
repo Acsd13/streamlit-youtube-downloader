@@ -6,6 +6,7 @@ from urllib.parse import urlparse, parse_qs
 import os
 import zipfile
 import io
+import chromedriver_autoinstaller
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -32,11 +33,10 @@ if 'download_progress' not in st.session_state:
 
 # Set up Selenium WebDriver
 def create_selenium_driver():
+    chromedriver_autoinstaller.install()  # This installs the correct version
     chrome_options = Options()
     chrome_options.add_argument("--headless")  # Run in headless mode for no GUI
-    chrome_driver_path = '/path/to/chromedriver'  # Replace with path to your ChromeDriver
-    service = Service(chrome_driver_path)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
     return driver
 
 # Function to handle CAPTCHA using Selenium
