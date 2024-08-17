@@ -4,4 +4,5 @@ pytube
 requests
 google-api-python-client
 selenium==4.21.0
+chromedriver-autoinstaller
 
