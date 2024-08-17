@@ -1,63 +1,30 @@
 import streamlit as st
 import yt_dlp
 from googleapiclient.discovery import build
-from time import sleep
 from urllib.parse import urlparse, parse_qs
 import os
 import zipfile
 import io
-import chromedriver_autoinstaller
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
-# Directory to store downloaded files temporarily
+# Configuration
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-
-# Path to cookies file
 COOKIES_FILE = 'cookies.txt'
+API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')
 
-# YouTube Data API key (Consider storing it in an environment variable for security)
-API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Make sure to set this environment variable
-
-# Initialize session state for download files and tracking
-if 'download_files' not in st.session_state:
-    st.session_state.download_files = set()
+# Initialize session state
 if 'download_progress' not in st.session_state:
     st.session_state.download_progress = {}
-
-# Set up Selenium WebDriver
-def create_selenium_driver():
-    chromedriver_autoinstaller.install()  # This installs the correct version
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode for no GUI
-    driver = webdriver.Chrome(options=chrome_options)
-    return driver
-
-# Function to handle CAPTCHA using Selenium
-def solve_captcha(url):
-    driver = create_selenium_driver()
-    driver.get(url)
-    try:
-        WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe[src*='captcha']")))
-        st.info("CAPTCHA frame detected. Manual intervention might be needed.")
-    finally:
-        driver.quit()
 
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     try:
         request = youtube.videos().list(
-            part='snippet,contentDetails,statistics',
+            part='snippet',
             id=video_id
         )
         response = request.execute()
-        st.write(f"Video info response: {response}")  # Debugging
         return response['items'][0] if response['items'] else None
     except Exception as e:
         st.error(f"Error fetching video info: {str(e)}")
@@ -70,60 +37,21 @@ def progress_hook(d):
     elif d['status'] == 'downloading':
         st.session_state.download_progress[d['filename']] = f"Downloading {d['downloaded_bytes'] / d['total_bytes']:.1%}"
 
-# Function to download videos with progress tracking and retry
-def download_videos(video_urls, fmt='mp4', max_retries=3):
+# Function to download videos
+def download_videos(video_urls):
     ydl_opts = {
-        'format': fmt,
+        'format': 'mp4',
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
-        'continuedl': True,
-        'ignoreerrors': True,
         'cookiefile': COOKIES_FILE,
         'progress_hooks': [progress_hook]
     }
 
-    failed_videos = []
-    overall_progress = st.progress(0)
-    status_container = st.empty()
-    
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            for i, url in enumerate(video_urls):
-                retries = 0
-                while retries < max_retries:
-                    try:
-                        status_container.subheader(f"Downloading {i+1}/{len(video_urls)}...")
-                        ydl.download([url])
-                        st.session_state.download_progress[url] = 'Completed'
-                        overall_progress.progress((i + 1) / len(video_urls))
-                        sleep(0.1)
-                        break
-                    except yt_dlp.utils.DownloadError as e:
-                        st.error(f"Error downloading video {url}: {str(e)}")
-                        retries += 1
-                        if retries == max_retries:
-                            st.session_state.download_progress[url] = 'Failed'
-                            failed_videos.append(url)
-                        else:
-                            st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
-                        sleep(2)  # Adding a short delay before retrying
-                    except Exception as e:
-                        st.error(f"Unexpected error: {str(e)}")
-                        retries += 1
-                        if retries == max_retries:
-                            st.session_state.download_progress[url] = 'Failed'
-                            failed_videos.append(url)
-                        else:
-                            st.warning(f"Retrying video {url} ({retries}/{max_retries})...")
-                        sleep(2)  # Adding a short delay before retrying
+            ydl.download(video_urls)
+        st.success("Download completed!")
     except Exception as e:
         st.error(f"Error during download: {str(e)}")
-    finally:
-        overall_progress.empty()
-        status_container.subheader("Download completed!")
-
-    if failed_videos:
-        st.warning("Retrying failed downloads...")
-        download_videos(failed_videos, fmt=fmt, max_retries=max_retries)
 
 # Function to create a ZIP file for all downloaded files
 def create_zip(files):
@@ -158,7 +86,7 @@ def get_playlist_id(url):
         st.error(f"Error parsing playlist ID: {str(e)}")
         return None
 
-# Function to get videos from a playlist using YouTube Data API
+# Function to get videos from a playlist
 def get_playlist_videos(playlist_id):
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     videos = []
@@ -172,7 +100,6 @@ def get_playlist_videos(playlist_id):
                 pageToken=next_page_token
             )
             response = request.execute()
-            st.write(f"Playlist response: {response}")  # Debugging
             for item in response['items']:
                 video_id = item['snippet']['resourceId']['videoId']
                 video_title = item['snippet']['title']
@@ -187,19 +114,18 @@ def get_playlist_videos(playlist_id):
         return []
 
 # User Interface
-st.title("YouTube Downloader Pro")
+st.title("YouTube Video Downloader")
 
 st.markdown("""
-**Welcome to YouTube Downloader Pro**: 
-The ultimate solution for downloading videos or playlists from YouTube with ease.
+**Download your favorite YouTube videos or playlists quickly and easily.**
 """)
 
 # Download options
 st.header("Download Options")
-download_type = st.radio("Choose download type", ['Single Video', 'Playlist'], key="download_type")
+download_type = st.radio("Choose download type", ['Single Video', 'Playlist'])
 
 # URL input
-url = st.text_input("Enter YouTube URL", key="url_input")
+url = st.text_input("Enter YouTube URL")
 
 if url:
     if download_type == 'Single Video':
@@ -209,24 +135,16 @@ if url:
             video_info = get_video_info(video_id)
             if video_info:
                 st.subheader(f"Video Title: {video_info['snippet']['title']}")
-                st.image(video_info['snippet']['thumbnails']['high']['url'])  # Display thumbnail
+                st.image(video_info['snippet']['thumbnails']['high']['url'])
                 
-                if st.button("Download Video", key="download_button_single"):
-                    try:
-                        solve_captcha(video_url)
-                        download_videos([video_url], fmt='mp4')
-                        st.success(f"Download of video {video_info['snippet']['title']} completed successfully!")
-
-                        # Provide download link
-                        st.download_button(
-                            label="Download Video",
-                            data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
-                            file_name=f"{video_info['snippet']['title']}.mp4",
-                            mime="video/mp4",
-                            key="download_video_single"
-                        )
-                    except Exception as e:
-                        st.error(f"Failed to solve CAPTCHA or download video: {str(e)}")
+                if st.button("Download Video"):
+                    download_videos([video_url])
+                    st.download_button(
+                        label="Download Video",
+                        data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
+                        file_name=f"{video_info['snippet']['title']}.mp4",
+                        mime="video/mp4"
+                    )
         else:
             st.warning("Invalid video URL.")
     
@@ -235,27 +153,19 @@ if url:
         if playlist_id:
             videos = get_playlist_videos(playlist_id)
             if videos:
-                selected_videos = st.multiselect("Select Videos to Download", [v['title'] for v in videos], default=[v['title'] for v in videos], key="playlist_multiselect")
+                selected_videos = st.multiselect("Select Videos to Download", [v['title'] for v in videos], default=[v['title'] for v in videos])
                 
-                if st.button("Download Playlist", key="download_button_playlist"):
+                if st.button("Download Playlist"):
                     selected_urls = [v['url'] for v in videos if v['title'] in selected_videos]
                     if selected_urls:
-                        try:
-                            solve_captcha(url)
-                            download_videos(selected_urls, fmt='mp4')
-                            st.success("Download of playlist completed successfully!")
-
-                            # Provide download link for playlist
-                            zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{v['title']}.mp4") for v in videos if v['title'] in selected_videos])
-                            st.download_button(
-                                label="Download Playlist",
-                                data=zip_buffer,
-                                file_name=f"playlist.zip",
-                                mime="application/zip",
-                                key="download_playlist_zip"
-                            )
-                        except Exception as e:
-                            st.error(f"Failed to solve CAPTCHA or download playlist: {str(e)}")
+                        download_videos(selected_urls)
+                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{v['title']}.mp4") for v in videos if v['title'] in selected_videos])
+                        st.download_button(
+                            label="Download Playlist",
+                            data=zip_buffer,
+                            file_name="playlist.zip",
+                            mime="application/zip"
+                        )
             else:
                 st.warning("Failed to fetch playlist information.")
         else:
