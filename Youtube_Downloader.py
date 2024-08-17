@@ -12,6 +12,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import threading
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -20,8 +21,8 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # Path to cookies file
 COOKIES_FILE = 'cookies.txt'
 
-# YouTube Data API key
-API_KEY = 'AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU'  # Replace with your YouTube Data API key
+# YouTube Data API key (Consider storing it in an environment variable for security)
+API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Replace with your YouTube Data API key
 
 # Initialize session state for download files and tracking
 if 'download_files' not in st.session_state:
@@ -43,7 +44,6 @@ def solve_captcha(url):
     driver = create_selenium_driver()
     driver.get(url)
     try:
-        # Example of interacting with a CAPTCHA iframe (customize this based on actual CAPTCHA type)
         WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe[src*='captcha']")))
         # Add CAPTCHA solving code or manual intervention steps here
     finally:
@@ -242,44 +242,37 @@ if url:
 
                 select_all = st.checkbox("Select all videos", value=False, key="select_all")
                 deselect_all = st.checkbox("Deselect all videos", value=False, key="deselect_all")
+
+                if select_all:
+                    selected_videos = st.multiselect("Select Videos to Download", videos, default=[v['url'] for v in videos], key="playlist_multiselect")
+                elif deselect_all:
+                    selected_videos = st.multiselect("Select Videos to Download", videos, key="playlist_multiselect")
+                else:
+                    selected_videos = st.multiselect("Select Videos to Download", videos, key="playlist_multiselect")
                 
-                start_range = st.number_input("Start range", min_value=1, max_value=len(videos), value=1, key="start_range")
-                end_range = st.number_input("End range", min_value=1, max_value=len(videos), value=len(videos), key="end_range")
-
-                st.subheader("Playlist Preview")
-                selected_videos = []
-
-                with st.expander("Video List"):
-                    for i, video in enumerate(videos):
-                        checked = st.checkbox(video['title'], value=(select_all or (start_range <= i + 1 <= end_range)), key=f"video_{i}")
-                        if checked:
-                            selected_videos.append(video['url'])
-                    
-                if st.button("Download Selected Videos", key="download_button_playlist"):
-                    if selected_videos:
-                        try:
-                            download_videos(selected_videos, fmt='mp4')
-                            st.success("Download of selected videos completed successfully!")
-
-                            # Provide zip download link
-                            zip_files = [os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in videos if video['url'] in selected_videos]
-                            if zip_files:
-                                zip_buffer = create_zip(zip_files)
-                                st.download_button(
-                                    label="Download Playlist",
-                                    data=zip_buffer,
-                                    file_name="playlist.zip",
-                                    mime="application/zip",
-                                    key="download_playlist_zip"
-                                )
-                        except Exception as e:
-                            st.error(f"Failed to download selected videos: {str(e)}")
-                    else:
-                        st.warning("No videos selected.")
+                if st.button("Download Playlist", key="download_button_playlist"):
+                    try:
+                        solve_captcha(url)
+                        download_videos(selected_videos, fmt='mp4')
+                        st.success("Download of playlist completed successfully!")
+                        
+                        # Provide download link for playlist
+                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in selected_videos])
+                        st.download_button(
+                            label="Download Playlist",
+                            data=zip_buffer,
+                            file_name=f"playlist.zip",
+                            mime="application/zip",
+                            key="download_playlist_zip"
+                        )
+                    except Exception as e:
+                        st.error(f"Failed to solve CAPTCHA or download playlist: {str(e)}")
             else:
-                st.warning("Failed to fetch playlist videos.")
+                st.warning("Failed to fetch playlist information.")
         else:
             st.warning("Invalid playlist URL.")
+else:
+    st.info("Please enter a valid YouTube URL to proceed.")
 
 # Footer with contact icons and information
 st.markdown("""
