@@ -23,7 +23,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
 
 # YouTube Data API key (Consider storing it in an environment variable for security)
-API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Ensure to set this environment variable or replace with your key
+API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Make sure to set this environment variable
 
 # Initialize session state for download files and tracking
 if 'download_files' not in st.session_state:
@@ -268,6 +268,7 @@ if url:
             st.warning("Invalid playlist URL.")
 else:
     st.info("Please enter a valid YouTube URL to proceed.")
+
 
 # Footer with contact icons and information
 st.markdown("""
