@@ -13,7 +13,6 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import threading
 
 # Directory to store downloaded files temporarily
 DOWNLOAD_DIR = "downloads"
@@ -45,7 +44,6 @@ def solve_captcha(url):
     driver.get(url)
     try:
         WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe[src*='captcha']")))
-        # Add CAPTCHA solving code or manual intervention steps here
         st.info("CAPTCHA frame detected. Manual intervention might be needed.")
     finally:
         driver.quit()
@@ -59,6 +57,7 @@ def get_video_info(video_id):
             id=video_id
         )
         response = request.execute()
+        st.write(f"Video info response: {response}")  # Debugging
         return response['items'][0] if response['items'] else None
     except Exception as e:
         st.error(f"Error fetching video info: {str(e)}")
@@ -173,6 +172,7 @@ def get_playlist_videos(playlist_id):
                 pageToken=next_page_token
             )
             response = request.execute()
+            st.write(f"Playlist response: {response}")  # Debugging
             for item in response['items']:
                 video_id = item['snippet']['resourceId']['videoId']
                 video_title = item['snippet']['title']
@@ -215,32 +215,26 @@ if url:
                     try:
                         solve_captcha(video_url)
                         download_videos([video_url], fmt='mp4')
-                        st.success(f"Download of '{video_info['snippet']['title']}' completed successfully!")
-                        
+                        st.success(f"Download of video {video_info['snippet']['title']} completed successfully!")
+
                         # Provide download link
-                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4")])
                         st.download_button(
                             label="Download Video",
-                            data=zip_buffer,
-                            file_name=f"{video_info['snippet']['title']}.zip",
-                            mime="application/zip",
-                            key="download_video_zip"
+                            data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
+                            file_name=f"{video_info['snippet']['title']}.mp4",
+                            mime="video/mp4",
+                            key="download_video_single"
                         )
                     except Exception as e:
                         st.error(f"Failed to solve CAPTCHA or download video: {str(e)}")
-            else:
-                st.warning("Failed to fetch video information.")
         else:
             st.warning("Invalid video URL.")
+    
     elif download_type == 'Playlist':
         playlist_id = get_playlist_id(url)
         if playlist_id:
             videos = get_playlist_videos(playlist_id)
             if videos:
-                st.subheader("Select Videos to Download")
-                st.write(f"Found {len(videos)} videos in the playlist.")
-
-                # Multi-select box for videos
                 selected_videos = st.multiselect("Select Videos to Download", [v['title'] for v in videos], default=[v['title'] for v in videos], key="playlist_multiselect")
                 
                 if st.button("Download Playlist", key="download_button_playlist"):
@@ -268,7 +262,6 @@ if url:
             st.warning("Invalid playlist URL.")
 else:
     st.info("Please enter a valid YouTube URL to proceed.")
-
 
 # Footer with contact icons and information
 st.markdown("""
