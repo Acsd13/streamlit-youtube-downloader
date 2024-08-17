@@ -23,7 +23,7 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
 
 # YouTube Data API key (Consider storing it in an environment variable for security)
-API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Replace with your YouTube Data API key
+API_KEY = os.getenv('AIzaSyDtHIlY1Z_urTEHSKNqeNMZ9Iynoco8AUU')  # Ensure to set this environment variable or replace with your key
 
 # Initialize session state for download files and tracking
 if 'download_files' not in st.session_state:
@@ -46,6 +46,7 @@ def solve_captcha(url):
     try:
         WebDriverWait(driver, 30).until(EC.frame_to_be_available_and_switch_to_it((By.CSS_SELECTOR, "iframe[src*='captcha']")))
         # Add CAPTCHA solving code or manual intervention steps here
+        st.info("CAPTCHA frame detected. Manual intervention might be needed.")
     finally:
         driver.quit()
 
@@ -223,7 +224,7 @@ if url:
                             data=zip_buffer,
                             file_name=f"{video_info['snippet']['title']}.zip",
                             mime="application/zip",
-                            key="download_single_video_zip"
+                            key="download_video_zip"
                         )
                     except Exception as e:
                         st.error(f"Failed to solve CAPTCHA or download video: {str(e)}")
@@ -231,42 +232,36 @@ if url:
                 st.warning("Failed to fetch video information.")
         else:
             st.warning("Invalid video URL.")
-    
     elif download_type == 'Playlist':
         playlist_id = get_playlist_id(url)
         if playlist_id:
             videos = get_playlist_videos(playlist_id)
-            
             if videos:
-                st.subheader("Video Selection Options")
+                st.subheader("Select Videos to Download")
+                st.write(f"Found {len(videos)} videos in the playlist.")
 
-                select_all = st.checkbox("Select all videos", value=False, key="select_all")
-                deselect_all = st.checkbox("Deselect all videos", value=False, key="deselect_all")
-
-                if select_all:
-                    selected_videos = st.multiselect("Select Videos to Download", videos, default=[v['url'] for v in videos], key="playlist_multiselect")
-                elif deselect_all:
-                    selected_videos = st.multiselect("Select Videos to Download", videos, key="playlist_multiselect")
-                else:
-                    selected_videos = st.multiselect("Select Videos to Download", videos, key="playlist_multiselect")
+                # Multi-select box for videos
+                selected_videos = st.multiselect("Select Videos to Download", [v['title'] for v in videos], default=[v['title'] for v in videos], key="playlist_multiselect")
                 
                 if st.button("Download Playlist", key="download_button_playlist"):
-                    try:
-                        solve_captcha(url)
-                        download_videos(selected_videos, fmt='mp4')
-                        st.success("Download of playlist completed successfully!")
-                        
-                        # Provide download link for playlist
-                        zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{video['title']}.mp4") for video in selected_videos])
-                        st.download_button(
-                            label="Download Playlist",
-                            data=zip_buffer,
-                            file_name=f"playlist.zip",
-                            mime="application/zip",
-                            key="download_playlist_zip"
-                        )
-                    except Exception as e:
-                        st.error(f"Failed to solve CAPTCHA or download playlist: {str(e)}")
+                    selected_urls = [v['url'] for v in videos if v['title'] in selected_videos]
+                    if selected_urls:
+                        try:
+                            solve_captcha(url)
+                            download_videos(selected_urls, fmt='mp4')
+                            st.success("Download of playlist completed successfully!")
+
+                            # Provide download link for playlist
+                            zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{v['title']}.mp4") for v in videos if v['title'] in selected_videos])
+                            st.download_button(
+                                label="Download Playlist",
+                                data=zip_buffer,
+                                file_name=f"playlist.zip",
+                                mime="application/zip",
+                                key="download_playlist_zip"
+                            )
+                        except Exception as e:
+                            st.error(f"Failed to solve CAPTCHA or download playlist: {str(e)}")
             else:
                 st.warning("Failed to fetch playlist information.")
         else:
