@@ -18,13 +18,19 @@ if 'download_progress' not in st.session_state:
 
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
-    youtube = build('youtube', 'v3', developerKey=API_KEY)
+    st.write(f"Getting video info for video ID: {video_id}")  # Debug statement
+    if not API_KEY:
+        st.error("YouTube API key is missing!")
+        return None
+
     try:
+        youtube = build('youtube', 'v3', developerKey=API_KEY)
         request = youtube.videos().list(
             part='snippet',
             id=video_id
         )
         response = request.execute()
+        st.write(f"API Response: {response}")  # Debug statement
         return response['items'][0] if response['items'] else None
     except Exception as e:
         st.error(f"Error fetching video info: {str(e)}")
@@ -66,11 +72,14 @@ def create_zip(files):
 
 # Function to get video ID from URL
 def get_video_id(url):
+    st.write(f"Parsing video ID from URL: {url}")  # Debug statement
     try:
         parsed_url = urlparse(url)
         if 'watch' in parsed_url.path:
             query_params = parse_qs(parsed_url.query)
-            return query_params.get('v', [None])[0]
+            video_id = query_params.get('v', [None])[0]
+            st.write(f"Extracted video ID: {video_id}")  # Debug statement
+            return video_id
         return None
     except Exception as e:
         st.error(f"Error parsing video ID: {str(e)}")
@@ -78,19 +87,27 @@ def get_video_id(url):
 
 # Function to get playlist ID from URL
 def get_playlist_id(url):
+    st.write(f"Parsing playlist ID from URL: {url}")  # Debug statement
     try:
         parsed_url = urlparse(url)
         query_params = parse_qs(parsed_url.query)
-        return query_params.get('list', [None])[0]
+        playlist_id = query_params.get('list', [None])[0]
+        st.write(f"Extracted playlist ID: {playlist_id}")  # Debug statement
+        return playlist_id
     except Exception as e:
         st.error(f"Error parsing playlist ID: {str(e)}")
         return None
 
 # Function to get videos from a playlist
 def get_playlist_videos(playlist_id):
-    youtube = build('youtube', 'v3', developerKey=API_KEY)
+    st.write(f"Fetching videos from playlist ID: {playlist_id}")  # Debug statement
+    if not API_KEY:
+        st.error("YouTube API key is missing!")
+        return []
+
     videos = []
     try:
+        youtube = build('youtube', 'v3', developerKey=API_KEY)
         next_page_token = None
         while True:
             request = youtube.playlistItems().list(
@@ -100,6 +117,7 @@ def get_playlist_videos(playlist_id):
                 pageToken=next_page_token
             )
             response = request.execute()
+            st.write(f"API Response: {response}")  # Debug statement
             for item in response['items']:
                 video_id = item['snippet']['resourceId']['videoId']
                 video_title = item['snippet']['title']
