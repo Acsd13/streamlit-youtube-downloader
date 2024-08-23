@@ -10,7 +10,7 @@ import io
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
-API_KEY = os.getenv('AIzaSyDQNPFw6xaopguvjKoHioCcECnY4oy2nas')  # Ensure your API key is set as an environment variable
+API_KEY = os.getenv('AIzaSyATV2t6BNVcVq6E0W9Hr0_q8VysJSOo2-M')  # Ensure your API key is set as an environment variable
 
 # Initialize session state
 if 'download_progress' not in st.session_state:
