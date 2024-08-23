@@ -128,7 +128,7 @@ download_type = st.radio("Choose download type", ['Single Video', 'Playlist'])
 st.header("Select Quality")
 quality = st.selectbox(
     "Choose the quality for the download:",
-    ["best", "720p", "480p", "360p"]
+    ["best", "1080p", "720p", "480p", "360p"]
 )
 
 # URL input
