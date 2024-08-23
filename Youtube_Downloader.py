@@ -38,9 +38,9 @@ def progress_hook(d):
         st.session_state.download_progress[d['filename']] = f"Downloading {d['downloaded_bytes'] / d['total_bytes']:.1%}"
 
 # Function to download videos
-def download_videos(video_urls):
+def download_videos(video_urls, quality):
     ydl_opts = {
-        'format': 'mp4',
+        'format': quality,
         'outtmpl': os.path.join(DOWNLOAD_DIR, '%(title)s.%(ext)s'),
         'cookiefile': COOKIES_FILE,
         'progress_hooks': [progress_hook]
@@ -124,6 +124,13 @@ st.markdown("""
 st.header("Download Options")
 download_type = st.radio("Choose download type", ['Single Video', 'Playlist'])
 
+# Quality selection
+st.header("Select Quality")
+quality = st.selectbox(
+    "Choose the quality for the download:",
+    ["best", "720p", "480p", "360p"]
+)
+
 # URL input
 url = st.text_input("Enter YouTube URL")
 
@@ -138,7 +145,7 @@ if url:
                 st.image(video_info['snippet']['thumbnails']['high']['url'])
                 
                 if st.button("Download Video"):
-                    download_videos([video_url])
+                    download_videos([video_url], quality)
                     st.download_button(
                         label="Download Video",
                         data=open(os.path.join(DOWNLOAD_DIR, f"{video_info['snippet']['title']}.mp4"), "rb").read(),
@@ -158,7 +165,7 @@ if url:
                 if st.button("Download Playlist"):
                     selected_urls = [v['url'] for v in videos if v['title'] in selected_videos]
                     if selected_urls:
-                        download_videos(selected_urls)
+                        download_videos(selected_urls, quality)
                         zip_buffer = create_zip([os.path.join(DOWNLOAD_DIR, f"{v['title']}.mp4") for v in videos if v['title'] in selected_videos])
                         st.download_button(
                             label="Download Playlist",
