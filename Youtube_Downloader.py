@@ -135,6 +135,7 @@ quality = st.selectbox(
 url = st.text_input("Enter YouTube URL")
 
 if url:
+    st.info("Processing your request...")
     if download_type == 'Single Video':
         video_id = get_video_id(url)
         if video_id:
