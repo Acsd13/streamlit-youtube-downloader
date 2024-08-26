@@ -10,7 +10,7 @@ import io
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 COOKIES_FILE = 'cookies.txt'
-API_KEY = os.getenv('AIzaSyATV2t6BNVcVq6E0W9Hr0_q8VysJSOo2-M')  # Correctly read API key from environment variable
+API_KEY = 'AIzaSyATV2t6BNVcVq6E0W9Hr0_q8VysJSOo2-M'  # Correctly read API key from environment variable
 
 # Initialize session state
 if 'download_progress' not in st.session_state:
@@ -19,7 +19,9 @@ if 'download_progress' not in st.session_state:
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
     st.write(f"Getting video info for video ID: {video_id}")  # Debug statement
-
+    if not API_KEY:
+        st.error("YouTube API key is missing!")
+        return None
     try:
         youtube = build('youtube', 'v3', developerKey=API_KEY)
         request = youtube.videos().list(
