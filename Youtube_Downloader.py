@@ -19,9 +19,6 @@ if 'download_progress' not in st.session_state:
 # Function to get video info using YouTube Data API
 def get_video_info(video_id):
     st.write(f"Getting video info for video ID: {video_id}")  # Debug statement
-    if not API_KEY:
-        st.error("YouTube API key is missing!")
-        return None
 
     try:
         youtube = build('youtube', 'v3', developerKey=API_KEY)
